@@ -118,6 +118,71 @@ info:
   title: FanticBet API
   version: "1.0"
 paths:
+  /auth/{provider}/callback:
+    get:
+      description: Вызывается провайдером после авторизации. Возвращает access-токен
+        и устанавливает refresh-cookie. Swagger "Try it out" здесь не работает — эндпоинт
+        вызывается браузером, а не напрямую.
+      parameters:
+      - description: 'Провайдер: yandex или vk'
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: Код авторизации от провайдера
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: CSRF-state (должен совпасть с cookie)
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.tokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: OAuth — callback от провайдера
+      tags:
+      - auth
+  /auth/{provider}/login:
+    get:
+      description: 'Начало OAuth-флоу: перенаправляет на страницу авторизации Яндекс
+        или VK. Значения provider: yandex, vk.'
+      parameters:
+      - description: 'Провайдер: yandex или vk'
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: OAuth — редирект к провайдеру
+      tags:
+      - auth
   /auth/login:
     post:
       consumes:

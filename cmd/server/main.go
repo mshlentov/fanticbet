@@ -67,6 +67,7 @@ func main() {
 	refreshRepo := repository.NewRefreshTokenRepository(pool)
 	walletRepo := repository.NewWalletRepository(pool)
 	walletTxRepo := repository.NewWalletTransactionRepository(pool)
+	authIdentityRepo := repository.NewAuthIdentityRepository(pool)
 
 	jwtMgr, err := security.NewJWTManager(cfg.JWTSecret, accessTTL)
 	if err != nil {
@@ -75,9 +76,16 @@ func main() {
 
 	authSvc := service.NewAuthService(txMgr, userRepo, refreshRepo, walletRepo, walletTxRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
 	userSvc := service.NewUserService(userRepo, walletRepo, walletTxRepo)
+	oauthSvc := service.NewOAuthService(txMgr, userRepo, walletRepo, walletTxRepo, authIdentityRepo, refreshRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
+
+	yandexCfg, vkCfg := handler.NewOAuthConfigs(
+		cfg.YandexClientID, cfg.YandexClientSecret, cfg.YandexRedirectURI,
+		cfg.VKClientID, cfg.VKClientSecret, cfg.VKRedirectURI,
+	)
 
 	authH := handler.NewAuthHandler(authSvc, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
 	userH := handler.NewUserHandler(userSvc)
+	oauthH := handler.NewOAuthHandler(oauthSvc, yandexCfg, vkCfg, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
 
 	// Setup router
 	if os.Getenv("GIN_MODE") == "" {
@@ -115,6 +123,10 @@ func main() {
 			auth.POST("/login", authH.Login)
 			auth.POST("/refresh", authH.Refresh)
 			auth.POST("/logout", authH.Logout)
+
+			// OAuth: Яндекс и VK.
+			auth.GET("/:provider/login", oauthH.Login)
+			auth.GET("/:provider/callback", oauthH.Callback)
 		}
 
 		// Профиль текущего пользователя (за AuthRequired).

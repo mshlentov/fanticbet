@@ -85,15 +85,18 @@
 - [x] 🟢 Swagger/OpenAPI: аннотации `swaggo` на хендлерах + UI на `/swagger/index.html` (генерация `swag init` → `docs/swagger`, `make swagger`)
 - [ ] 🟡 *(тест)* Проверка регистрации: баланс кошелька = сумме транзакций после signup — *отложено: интеграционный тест handler→DB (testcontainers), либо ручная проверка через Postman*
 
-### OAuth (Google — первая итерация)
-- [ ] 🟢 Зарегистрировать OAuth-приложение в Google Cloud, получить client_id/secret, прописать redirect URI
-- [ ] 🟡 Подключить `markbates/goth`, настроить Google-провайдер
-- [ ] 🟢 `GET /auth/:provider/login` (редирект к провайдеру)
-- [ ] 🔴 `GET /auth/:provider/callback`: обмен кода → поиск `auth_identities` → (логин / привязка по email / регистрация с бонусом) → выдача токенов
+### OAuth (Яндекс + VK)
+- [x] 🟢 Зарегистрировать OAuth-приложения в Яндекс ID и VK, получить client_id/secret, прописать redirect URI
+- [x] 🟡 Реализовать OAuth через `golang.org/x/oauth2` для Яндекс и VK (без `markbates/goth` — единый стек для обоих провайдеров)
+- [x] 🟢 `GET /auth/:provider/login` (редирект к провайдеру, CSRF-state в cookie)
+- [x] 🔴 `GET /auth/:provider/callback`: проверка state → обмен кода → профиль от провайдера → поиск `auth_identities` → (логин / привязка по email / регистрация с бонусом) → выдача токенов
+- [x] 🟢 Пользователи без email (VK не дал) — допускаются (OAuth-only аккаунт)
+
+### OAuth Google (backlog)
+- [ ] 🟢 Зарегистрировать OAuth-приложение в Google Cloud, получить client_id/secret
+- [ ] 🟡 Подключить провайдер Google (через `golang.org/x/oauth2`, по аналогии с Яндекс/VK)
 
 ### Backlog M1 (после MVP-ядра)
-- [ ] 🟡 Добавить провайдер Яндекс
-- [ ] 🟡 Добавить провайдер VK ID (ручные эндпоинты через `golang.org/x/oauth2`)
 
 ---
 
