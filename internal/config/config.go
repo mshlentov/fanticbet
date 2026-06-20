@@ -37,6 +37,14 @@ type Config struct {
 	GoogleClientSecret string
 	GoogleRedirectURI  string
 
+	YandexClientID     string
+	YandexClientSecret string
+	YandexRedirectURI  string
+
+	VKClientID     string
+	VKClientSecret string
+	VKRedirectURI  string
+
 	SignupBonus int64
 	BetMin      int64
 	BetMax      int64
@@ -69,6 +77,14 @@ func Load() (*Config, error) {
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURI:  getEnv("GOOGLE_REDIRECT_URI", ""),
+
+		YandexClientID:     getEnv("YANDEX_CLIENT_ID", ""),
+		YandexClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
+		YandexRedirectURI:  getEnv("YANDEX_REDIRECT_URI", "http://localhost:8080/api/v1/auth/yandex/callback"),
+
+		VKClientID:     getEnv("VK_CLIENT_ID", ""),
+		VKClientSecret: getEnv("VK_CLIENT_SECRET", ""),
+		VKRedirectURI:  getEnv("VK_REDIRECT_URI", "http://localhost:8080/api/v1/auth/vk/callback"),
 
 		SignupBonus: getEnvInt64("SIGNUP_BONUS", 10000),
 		BetMin:      getEnvInt64("BET_MIN", 10),

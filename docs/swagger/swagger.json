@@ -199,6 +199,99 @@
                 }
             }
         },
+        "/auth/{provider}/callback": {
+            "get": {
+                "description": "Вызывается провайдером после авторизации. Возвращает access-токен и устанавливает refresh-cookie. Swagger \"Try it out\" здесь не работает — эндпоинт вызывается браузером, а не напрямую.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "OAuth — callback от провайдера",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Провайдер: yandex или vk",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Код авторизации от провайдера",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "CSRF-state (должен совпасть с cookie)",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.tokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/{provider}/login": {
+            "get": {
+                "description": "Начало OAuth-флоу: перенаправляет на страницу авторизации Яндекс или VK. Значения provider: yandex, vk.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "OAuth — редирект к провайдеру",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Провайдер: yandex или vk",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/me": {
             "get": {
                 "security": [

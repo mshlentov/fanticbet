@@ -105,6 +105,26 @@ func (m *fakeWalletTxRepo) ListByUser(ctx context.Context, userID int64, page in
 	return nil, nil // не используется в большинстве тестов
 }
 
+// --- AuthIdentityRepository mock ---
+
+type fakeAuthIdentityRepo struct {
+	getByProviderFn func(ctx context.Context, provider domain.Provider, providerUserID string) (domain.AuthIdentity, error)
+	createFn        func(ctx context.Context, identity domain.AuthIdentity) (int64, error)
+	lastCreated     domain.AuthIdentity
+}
+
+func (m *fakeAuthIdentityRepo) GetByProvider(ctx context.Context, provider domain.Provider, providerUserID string) (domain.AuthIdentity, error) {
+	return m.getByProviderFn(ctx, provider, providerUserID)
+}
+
+func (m *fakeAuthIdentityRepo) Create(ctx context.Context, identity domain.AuthIdentity) (int64, error) {
+	m.lastCreated = identity
+	if m.createFn != nil {
+		return m.createFn(ctx, identity)
+	}
+	return 1, nil
+}
+
 // --- RefreshTokenRepository mock ---
 
 type fakeRefreshRepo struct {
