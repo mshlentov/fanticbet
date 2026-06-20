@@ -281,3 +281,94 @@ import (
 - [ ] Критичные места покрыты тестами
 - [ ] Миграция имеет `up` и `down`
 - [ ] DTO с тегами валидации, без domain-моделей в запросах
+
+---
+
+## 15. Запуск команд в локальном окружении
+
+Окружение разработчика: Windows 10, Git Bash (MINGW64) как основной шелл в
+терминале IDE. Этих правил достаточно, чтобы любая команда из тасков и
+README проходила успешно.
+
+### Go не в PATH — добавляем явно
+
+Go SDK установлен в `C:\Users\lister\sdk\go1.26.3` и **не** добавлен в системный
+`PATH`. Поэтому перед любой Go-командой экспортируем путь в текущей сессии шелла:
+
+```bash
+export PATH="$HOME/sdk/go1.26.3/bin:$PATH"
+go version     # проверка: go version go1.26.3 windows/amd64
+```
+
+Альтернатива (раз и навсегда для всех новых сессий) — прописать путь в
+`~/.bash_profile` Git Bash, либо добавить `C:\Users\lister\sdk\go1.26.3\bin`
+в системные переменные среды Windows. Но в скриптах/CI рассчитываем на
+явный `export`, чтобы команда была самодостаточной.
+
+### `make` недоступен — вызываем таргеты напрямую
+
+В системе **нет** утилиты `make`, поэтому таргеты из `Makefile` нельзя
+вызывать как `make run`. Разворачиваем их в эквивалентные команды:
+
+| Таргет Makefile | Эквивалент в Git Bash |
+|---|---|
+| `make run` | `go run cmd/server/main.go` |
+| `make build` | `go build -o bin/server cmd/server/main.go` |
+| `make docker-up` | `docker compose up -d postgres` |
+| `make docker-down` | `docker compose down` |
+| `make docker-logs` | `docker compose logs -f postgres` |
+
+`migrate-up` / `migrate-down` / `migrate-new` — см. ниже (нужен отдельный CLI).
+
+### Миграции без `golang-migrate` CLI
+
+CLI `migrate` **не установлен**. Пока он не появился, применяем миграции
+одним из способов:
+
+**Вариант A — через `psql` внутри контейнера Postgres** (рекомендуемый,
+не требует установки чего-либо в хост):
+
+```bash
+# Применить все up-миграции (выполнять по порядку):
+docker compose exec -T postgres psql -U fanticbet -d fanticbet < migrations/000001_create_users.up.sql
+# Откат последней:
+docker compose exec -T postgres psql -U fanticbet -d fanticbet < migrations/000005_create_wallet_transactions.down.sql
+```
+
+**Вариант B — установить CLI один раз** (тогда работают таргеты Makefile напрямую):
+
+```bash
+export PATH="$HOME/sdk/go1.26.3/bin:$PATH"
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+# Бинарь окажется в $GOPATH/bin, т.е. ~/go/bin/migrate — добавляем в PATH:
+export PATH="$HOME/go/bin:$PATH"
+migrate -version
+```
+
+Создание новой миграции без `migrate`: копируем ближайшую пару
+`NNNNNN_*.up.sql` / `.down.sql`, инкрементируем номер, правим содержимое
+(правило «одна миграция = одно изменение» остаётся в силе).
+
+### Построение/тестирование — обязательная последовательность
+
+Перед каждым коммитом, затрагивающим Go-код, прогоняем (всегда с `export`):
+
+```bash
+export PATH="$HOME/sdk/go1.26.3/bin:$PATH"
+go vet ./...          # статический анализ
+go build ./...        # всё ли компилируется
+go test ./...         # все тесты
+go test ./internal/security/... -v   # детально по конкретному пакету
+```
+
+### Специфика Git Bash на Windows — что не работает
+
+- `2>nul`, `>nul` — bash интерпретирует `nul` как **имя файла** и создаёт
+  файл `nul` в текущей директории (это уже случалось). Используем
+  `2>/dev/null` вместо редиректа в «никуда».
+- Встроенный шелл `cmd.exe` (`cmd /c "..."`) в этом окружении ведёт себя
+  нестабильно (не возвращает вывод) — предпочитаем bash-синтаксис.
+- Пути: внутри bash используем `/c/Users/...` или `$HOME`, не `C:\Users\...`.
+  Обратные слеши работают только в нативных windows-утилитах.
+- `SIGINT`/`SIGTERM` для graceful shutdown приходят корректно (Ctrl+C в
+  терминале) — обработка в `cmd/server/main.go` работает.
