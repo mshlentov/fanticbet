@@ -84,6 +84,9 @@ func main() {
 	userSvc := service.NewUserService(userRepo, walletRepo, walletTxRepo)
 	eventSvc := service.NewEventService(eventRepo, marketRepo, outcomeRepo)
 	bettingSvc := service.NewBettingService(txMgr, betRepo, outcomeRepo, marketRepo, eventRepo, walletRepo, walletTxRepo, cfg.BetMin, cfg.BetMax)
+	// SettlementService — расчёт завершённых событий. Используется воркером (не
+	// хендлером): тот же набор репозиториев, что у BettingService, плюс tx-менеджер.
+	settlementSvc := service.NewSettlementService(txMgr, eventRepo, marketRepo, outcomeRepo, betRepo, walletRepo, walletTxRepo, nil)
 	oauthSvc := service.NewOAuthService(txMgr, userRepo, walletRepo, walletTxRepo, authIdentityRepo, refreshRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
 
 	yandexCfg, vkCfg := handler.NewOAuthConfigs(
@@ -169,6 +172,7 @@ func main() {
 
 		eventSync := worker.NewEventSyncWorker(eventRepo, marketRepo, oddsClient, cfg.Sports, nil)
 		oddsSync := worker.NewOddsSyncWorker(eventRepo, marketRepo, outcomeRepo, oddsClient, cfg.Bookmaker, oddsWindow, nil)
+		settlement := worker.NewSettlementWorker(eventRepo, oddsClient, settlementSvc, nil)
 
 		runner = worker.NewRunner(nil)
 		if err := runner.Register(worker.Job{
@@ -186,6 +190,14 @@ func main() {
 			Run:      oddsSync.Run,
 		}); err != nil {
 			log.Fatalf("Failed to register odds-sync worker: %v", err)
+		}
+		if err := runner.Register(worker.Job{
+			Name:     "settlement",
+			Schedule: cfg.SettlementSchedule,
+			Timeout:  2 * time.Minute,
+			Run:      settlement.Run,
+		}); err != nil {
+			log.Fatalf("Failed to register settlement worker: %v", err)
 		}
 		runner.Start()
 	}

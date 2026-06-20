@@ -158,14 +158,14 @@
 - [ ] 🟡 *(тест)* Конкурентная ставка: 2 параллельных запроса не уводят баланс в минус (проверка `FOR UPDATE`)
 
 ### Settlement
-- [ ] 🟡 `SettlementService`: расчёт **ML** (победитель из `scores.home/away`, ничья → draw)
-- [ ] 🟡 `SettlementService`: расчёт **TOTALS** (`home+away` vs `line`; равенство линии → void/push)
-- [ ] 🔴 `SettlementService.SettleEvent` — пометить outcomes.result, market.status='settled', затем по каждой pending-ставке **в транзакции**: won → payout + tx `bet_payout`; lost → только статус; void → refund stake + tx `bet_refund`; в конце event.status='settled', сохранить `scores`
-- [ ] 🟡 Обработка статуса `cancelled` из API → void всех ставок события с возвратом
-- [ ] 🟡 Обеспечить идемпотентность (обрабатывать только `pending`-ставки; повторный прогон безопасен)
-- [ ] 🟡 `SettlementWorker` (каждые 5 мин): выбрать started-события oddsapi → `GetEvent` → при `settled`/`cancelled` вызвать сервис
-- [ ] 🟢 Подключить settlement-воркер в раннер
-- [ ] 🟡 *(тест)* Полный цикл: ставка → settlement won/lost/void → корректные баланс и транзакции
+- [x] 🟡 `SettlementService`: расчёт **ML** (победитель из `scores.home/away`, ничья → draw)
+- [x] 🟡 `SettlementService`: расчёт **TOTALS** (`home+away` vs `line`; равенство линии → void/push)
+- [x] 🔴 `SettlementService.SettleEvent` — пометить outcomes.result, market.status='settled', затем по каждой pending-ставке **в транзакции**: won → payout + tx `bet_payout`; lost → только статус; void → refund stake + tx `bet_refund`; в конце event.status='settled', сохранить `scores`
+- [x] 🟡 Обработка статуса `cancelled` из API → void всех ставок события с возвратом
+- [x] 🟡 Обеспечить идемпотентность (обрабатывать только `pending`-ставки; повторный прогон безопасен)
+- [x] 🟡 `SettlementWorker` (каждые 5 мин): выбрать started-события oddsapi → `GetEvent` → при `settled`/`cancelled` вызвать сервис
+- [x] 🟢 Подключить settlement-воркер в раннер
+- [x] 🟡 *(тест)* Полный цикл: ставка → settlement won/lost/void → корректные баланс и транзакции
 
 ---
 

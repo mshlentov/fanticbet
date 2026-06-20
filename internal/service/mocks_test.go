@@ -64,12 +64,20 @@ func (m *fakeUserRepo) TouchLastLogin(ctx context.Context, id int64, at time.Tim
 
 // --- WalletRepository mock ---
 
+// balanceUpdate — запись одного изменения баланса. balanceUpdates группирует
+// вызовы по пользователю: тесты settlement проверяют суммы выплат/возвратов
+// сразу по нескольким ставкам.
+type balanceUpdate struct {
+	Delta int64
+}
+
 type fakeWalletRepo struct {
-	createFn     func(ctx context.Context, userID int64) error
-	getByUserFn  func(ctx context.Context, userID int64) (domain.Wallet, error)
-	getForUpdFn  func(ctx context.Context, userID int64) (domain.Wallet, error)
-	updateBalFn  func(ctx context.Context, userID int64, delta int64) (int64, error)
-	updateBalArg int64 // последний переданный delta
+	createFn      func(ctx context.Context, userID int64) error
+	getByUserFn   func(ctx context.Context, userID int64) (domain.Wallet, error)
+	getForUpdFn   func(ctx context.Context, userID int64) (domain.Wallet, error)
+	updateBalFn   func(ctx context.Context, userID int64, delta int64) (int64, error)
+	updateBalArg  int64                     // последний переданный delta (обратная совместимость)
+	balanceByUser map[int64][]balanceUpdate // все изменения баланса по пользователю
 }
 
 func (m *fakeWalletRepo) Create(ctx context.Context, userID int64) error {
@@ -83,6 +91,10 @@ func (m *fakeWalletRepo) GetByUserIDForUpdate(ctx context.Context, userID int64)
 }
 func (m *fakeWalletRepo) UpdateBalance(ctx context.Context, userID int64, delta int64) (int64, error) {
 	m.updateBalArg = delta
+	if m.balanceByUser == nil {
+		m.balanceByUser = map[int64][]balanceUpdate{}
+	}
+	m.balanceByUser[userID] = append(m.balanceByUser[userID], balanceUpdate{Delta: delta})
 	return m.updateBalFn(ctx, userID, delta)
 }
 
@@ -147,6 +159,15 @@ func (m *fakeRefreshRepo) Revoke(ctx context.Context, id int64) error {
 
 // --- BetRepository mock ---
 
+// settledCall — запись одного вызова UpdateStatusSettled: id ставки, итоговый
+// статус и момент расчёта. Нужен тестам settlement для проверки, что каждая
+// pending-ставка получила правильный статус.
+type settledCall struct {
+	ID        int64
+	Status    domain.BetStatus
+	SettledAt time.Time
+}
+
 type fakeBetRepo struct {
 	createFn        func(ctx context.Context, b domain.Bet) (int64, error)
 	getByIDFn       func(ctx context.Context, id int64) (domain.Bet, error)
@@ -154,6 +175,7 @@ type fakeBetRepo struct {
 	listPendingFn   func(ctx context.Context, outcomeIDs []int64) ([]domain.Bet, error)
 	updateSettledFn func(ctx context.Context, id int64, status domain.BetStatus, settledAt time.Time) error
 	lastCreated     domain.Bet
+	settledCalls    []settledCall // все вызовы UpdateStatusSettled (для тестов settlement)
 }
 
 func (m *fakeBetRepo) Create(ctx context.Context, b domain.Bet) (int64, error) {
@@ -173,5 +195,9 @@ func (m *fakeBetRepo) ListPendingByOutcomes(ctx context.Context, outcomeIDs []in
 	return nil, nil
 }
 func (m *fakeBetRepo) UpdateStatusSettled(ctx context.Context, id int64, status domain.BetStatus, settledAt time.Time) error {
-	return m.updateSettledFn(ctx, id, status, settledAt)
+	m.settledCalls = append(m.settledCalls, settledCall{ID: id, Status: status, SettledAt: settledAt})
+	if m.updateSettledFn != nil {
+		return m.updateSettledFn(ctx, id, status, settledAt)
+	}
+	return nil
 }
