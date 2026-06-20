@@ -119,9 +119,9 @@
 - [ ] 🟢 Логирование остатка лимита из заголовка `x-ratelimit-remaining`
 
 ### Репозитории
-- [ ] 🟡 `EventRepository`: `Upsert` (по source+external_id), `GetByID`, `ListWithFilters` (sport/status/q/page), `ListForOddsSync` (upcoming, старт ≤ 48ч), `ListForSettlement` (upcoming/live, started), `UpdateStatusAndScores`
-- [ ] 🟢 `MarketRepository`: `CreateForEvent`, `GetByEvent`, `UpdateStatus`
-- [ ] 🟢 `OutcomeRepository`: `Upsert`, `GetByMarket`, `UpdateOdds`, `UpdateResult`
+- [x] 🟡 `EventRepository`: `Upsert` (по source+external_id), `GetByID`, `ListWithFilters` (sport/status/q/page), `ListForOddsSync` (upcoming, старт ≤ 48ч), `ListForSettlement` (upcoming/live, started), `UpdateStatusAndScores`
+- [x] 🟢 `MarketRepository`: `CreateForEvent`, `GetByEvent`, `UpdateStatus`
+- [x] 🟢 `OutcomeRepository`: `Upsert`, `GetByMarket`, `UpdateOdds`, `UpdateResult`
 
 ### Воркеры
 - [ ] 🟢 Подключить `robfig/cron/v3`, общий раннер воркеров
