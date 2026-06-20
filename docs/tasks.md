@@ -34,7 +34,7 @@
 - [x] 🟢 Написать `cmd/server/main.go`: загрузка конфига → подключение к БД → инициализация роутера Gin → запуск
 - [x] 🟢 Добавить эндпоинт `GET /health` (проверка БД)
 - [x] 🟢 Middleware логирования запросов (метод, путь, статус, latency)
-- [ ] 🟢 Хелпер единого формата ошибок: `{"error": {"code", "message"}}` + функции-обёртки
+- [x] 🟢 Хелпер единого формата ошибок: `{"error": {"code", "message"}}` + функции-обёртки
 - [x] 🟢 Middleware CORS (для dev-фронта)
 - [x] 🟡 Скелет graceful shutdown HTTP-сервера (перехват SIGINT/SIGTERM, `http.Server.Shutdown`)
 
@@ -73,16 +73,16 @@
 - [x] 🟢 `UserService.GetMe` (профиль + баланс одним ответом), `UpdateProfile` (display_name, avatar)
 
 ### Handlers и middleware
-- [ ] 🟢 `POST /auth/register` (+ валидация email/пароля через validator/v10)
-- [ ] 🟢 `POST /auth/login` (refresh в httpOnly+Secure cookie)
-- [ ] 🟢 `POST /auth/refresh` (читает cookie)
-- [ ] 🟢 `POST /auth/logout`
-- [ ] 🟡 Middleware `AuthRequired` (парсит JWT, кладёт user в context)
-- [ ] 🟢 Middleware `AdminRequired` (поверх `AuthRequired`, проверка role)
-- [ ] 🟢 `GET /me`
-- [ ] 🟢 `PATCH /me`
-- [ ] 🟢 `GET /me/transactions?page=`
-- [ ] 🟡 *(тест)* Проверка регистрации: баланс кошелька = сумме транзакций после signup
+- [x] 🟢 `POST /auth/register` (+ валидация email/пароля через validator/v10)
+- [x] 🟢 `POST /auth/login` (refresh в httpOnly+Secure cookie)
+- [x] 🟢 `POST /auth/refresh` (читает cookie; для Postman — также из тела)
+- [x] 🟢 `POST /auth/logout`
+- [x] 🟡 Middleware `AuthRequired` (парсит JWT, кладёт user в context)
+- [x] 🟢 Middleware `AdminRequired` (поверх `AuthRequired`, проверка role)
+- [x] 🟢 `GET /me`
+- [x] 🟢 `PATCH /me`
+- [x] 🟢 `GET /me/transactions?page=`
+- [ ] 🟡 *(тест)* Проверка регистрации: баланс кошелька = сумме транзакций после signup — *отложено: интеграционный тест handler→DB (testcontainers), либо ручная проверка через Postman*
 
 ### OAuth (Google — первая итерация)
 - [ ] 🟢 Зарегистрировать OAuth-приложение в Google Cloud, получить client_id/secret, прописать redirect URI

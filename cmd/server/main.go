@@ -13,6 +13,9 @@ import (
 	"fanticbet/internal/config"
 	"fanticbet/internal/handler"
 	"fanticbet/internal/handler/middleware"
+	"fanticbet/internal/repository"
+	"fanticbet/internal/security"
+	"fanticbet/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,6 +46,27 @@ func main() {
 	}
 	log.Println("Connected to database")
 
+	// Dependency injection: репозитории → сервисы → хендлеры.
+	accessTTL := time.Duration(cfg.JWTTTLMinutes) * time.Minute
+	refreshTTL := time.Duration(cfg.RefreshTTLDays) * 24 * time.Hour
+
+	txMgr := repository.NewTxManager(pool)
+	userRepo := repository.NewUserRepository(pool)
+	refreshRepo := repository.NewRefreshTokenRepository(pool)
+	walletRepo := repository.NewWalletRepository(pool)
+	walletTxRepo := repository.NewWalletTransactionRepository(pool)
+
+	jwtMgr, err := security.NewJWTManager(cfg.JWTSecret, accessTTL)
+	if err != nil {
+		log.Fatalf("Failed to init JWT manager: %v", err)
+	}
+
+	authSvc := service.NewAuthService(txMgr, userRepo, refreshRepo, walletRepo, walletTxRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
+	userSvc := service.NewUserService(userRepo, walletRepo, walletTxRepo)
+
+	authH := handler.NewAuthHandler(authSvc, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
+	userH := handler.NewUserHandler(userSvc)
+
 	// Setup router
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.DebugMode)
@@ -55,18 +79,34 @@ func main() {
 	// Global middleware
 	r.Use(middleware.Logger())
 	r.Use(middleware.Recovery())
-	r.Use(middleware.CORS())
+	r.Use(middleware.CORS(cfg.CORSAllowedOrigins))
 
 	// Health endpoint
 	r.GET("/health", handler.Health(pool))
 
-	// API v1 group (placeholder)
+	// API v1
 	v1 := r.Group("/api/v1")
 	{
-		// Endpoints will be added in M1+
 		v1.GET("/ping", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "pong"})
 		})
+
+		// Аутентификация (без AuthRequired).
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/register", authH.Register)
+			auth.POST("/login", authH.Login)
+			auth.POST("/refresh", authH.Refresh)
+			auth.POST("/logout", authH.Logout)
+		}
+
+		// Профиль текущего пользователя (за AuthRequired).
+		me := v1.Group("/me", middleware.AuthRequired(jwtMgr))
+		{
+			me.GET("", userH.GetMe)
+			me.PATCH("", userH.UpdateMe)
+			me.GET("/transactions", userH.Transactions)
+		}
 	}
 
 	// HTTP server with graceful shutdown

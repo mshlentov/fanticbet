@@ -89,8 +89,9 @@ func (m *fakeWalletRepo) UpdateBalance(ctx context.Context, userID int64, delta 
 // --- WalletTransactionRepository mock ---
 
 type fakeWalletTxRepo struct {
-	createFn    func(ctx context.Context, tx domain.WalletTransaction) (int64, error)
-	lastCreated domain.WalletTransaction
+	createFn     func(ctx context.Context, tx domain.WalletTransaction) (int64, error)
+	listByUserFn func(ctx context.Context, userID int64, page int) ([]domain.WalletTransaction, error)
+	lastCreated  domain.WalletTransaction
 }
 
 func (m *fakeWalletTxRepo) Create(ctx context.Context, t domain.WalletTransaction) (int64, error) {
@@ -98,7 +99,10 @@ func (m *fakeWalletTxRepo) Create(ctx context.Context, t domain.WalletTransactio
 	return m.createFn(ctx, t)
 }
 func (m *fakeWalletTxRepo) ListByUser(ctx context.Context, userID int64, page int) ([]domain.WalletTransaction, error) {
-	return nil, nil // не используется в этих тестах
+	if m.listByUserFn != nil {
+		return m.listByUserFn(ctx, userID, page)
+	}
+	return nil, nil // не используется в большинстве тестов
 }
 
 // --- RefreshTokenRepository mock ---
