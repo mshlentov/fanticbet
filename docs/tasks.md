@@ -103,10 +103,10 @@
 ## M2. События из Odds-API
 
 ### Миграции и domain
-- [ ] 🟢 Миграция `events` (+ unique source+external_id, индекс status+starts_at)
-- [ ] 🟢 Миграция `markets` (+ индекс event_id)
-- [ ] 🟢 Миграция `outcomes` (+ индекс market_id, CHECK odds > 1.0)
-- [ ] 🟢 Domain-структуры `Event`, `Market`, `Outcome` + константы (типы рынков `ML`/`TOTALS`/`CUSTOM`, статусы)
+- [x] 🟢 Миграция `events` (+ unique source+external_id, индекс status+starts_at)
+- [x] 🟢 Миграция `markets` (+ индекс event_id)
+- [x] 🟢 Миграция `outcomes` (+ индекс market_id, CHECK odds > 1.0)
+- [x] 🟢 Domain-структуры `Event`, `Market`, `Outcome` + константы (типы рынков `ML`/`TOTALS`/`CUSTOM`, статусы)
 
 ### Клиент Odds-API (`internal/oddsapi`)
 - [ ] 🟢 Изучить документацию API (загрузить `https://docs.odds-api.io/llms-full.txt`), зафиксировать формат ответов events/odds/scores
