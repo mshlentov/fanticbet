@@ -21,6 +21,14 @@ type Config struct {
 	JWTTTLMinutes  int
 	RefreshTTLDays int
 
+	// Cookie для refresh-токена. Secure=false в dev (http://localhost),
+	// true в prod (https). Domain="" означает текущий хост.
+	CookieSecure bool
+	CookieDomain string
+
+	// CORS: список разрешённых origin'ов (фронты). В dev — Vite на :5173.
+	CORSAllowedOrigins []string
+
 	OddsAPIKey string
 	Bookmaker  string
 	Sports     []string
@@ -48,6 +56,11 @@ func Load() (*Config, error) {
 		JWTSecret:      getEnv("JWT_SECRET", ""),
 		JWTTTLMinutes:  getEnvInt("JWT_TTL_MINUTES", 15),
 		RefreshTTLDays: getEnvInt("REFRESH_TTL_DAYS", 30),
+
+		CookieSecure: getEnvBool("COOKIE_SECURE", false),
+		CookieDomain: getEnv("COOKIE_DOMAIN", ""),
+
+		CORSAllowedOrigins: splitCSV(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173")),
 
 		OddsAPIKey: getEnv("ODDS_API_KEY", ""),
 		Bookmaker:  getEnv("BOOKMAKER", "pinnacle"),
@@ -106,6 +119,23 @@ func getEnvInt64(key string, fallback int64) int64 {
 		return fallback
 	}
 	return n
+}
+
+// getEnvBool читает bool из env. Принимает 1/0, true/false (case-insensitive),
+// yes/no. При ошибке или пустом значении — fallback.
+func getEnvBool(key string, fallback bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	switch strings.ToLower(v) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }
 
 func splitCSV(s string) []string {

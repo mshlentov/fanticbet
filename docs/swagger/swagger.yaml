@@ -1,0 +1,343 @@
+basePath: /api/v1
+definitions:
+  handler.errorBody:
+    properties:
+      code:
+        example: validation_error
+        type: string
+      message:
+        example: Неверные данные запроса
+        type: string
+    type: object
+  handler.errorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/handler.errorBody'
+    type: object
+  handler.loginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  handler.meResponse:
+    properties:
+      balance:
+        type: integer
+      user:
+        $ref: '#/definitions/handler.userDTO'
+    type: object
+  handler.refreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  handler.registerRequest:
+    properties:
+      display_name:
+        minLength: 2
+        type: string
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - display_name
+    - email
+    - password
+    type: object
+  handler.tokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        description: секунды до истечения access-токена
+        type: integer
+      token_type:
+        type: string
+    type: object
+  handler.transactionResponse:
+    properties:
+      amount:
+        type: integer
+      balance_after:
+        type: integer
+      bet_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      type:
+        type: string
+    type: object
+  handler.transactionsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.transactionResponse'
+        type: array
+      page:
+        type: integer
+    type: object
+  handler.updateProfileRequest:
+    properties:
+      avatar_url:
+        type: string
+      display_name:
+        description: 'Указатели + omitempty: отсутствующее поле = nil = «не менять».'
+        minLength: 2
+        type: string
+    type: object
+  handler.userDTO:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      display_name:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      last_login_at:
+        type: string
+      role:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: REST API платформы ставок на фантики. На текущем этапе (M1) реализованы
+    аутентификация и профиль пользователя.
+  title: FanticBet API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Проверяет email+пароль, возвращает access-токен; refresh-токен
+        — в httpOnly-cookie.
+      parameters:
+      - description: Учётные данные
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.tokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Вход
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Отзывает refresh-токен и очищает cookie. Идемпотентно.
+      parameters:
+      - description: Refresh-токен (опционально, если нет cookie)
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.refreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Выход
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Берёт refresh-токен из httpOnly-cookie (или из тела) и выдаёт новый
+        access-токен.
+      parameters:
+      - description: Refresh-токен (опционально, если нет cookie)
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.refreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.tokenResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Обновление access-токена
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт пользователя, кошелёк и начисляет signup-бонус. Возвращает
+        access-токен; refresh-токен — в httpOnly-cookie.
+      parameters:
+      - description: Данные регистрации
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.registerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.tokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Регистрация
+      tags:
+      - auth
+  /me:
+    get:
+      description: Возвращает профиль текущего пользователя и баланс кошелька.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.meResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Мой профиль
+      tags:
+      - me
+    patch:
+      consumes:
+      - application/json
+      description: Частично обновляет профиль. Незаданные поля сохраняют текущее значение.
+        Возвращает обновлённый профиль с балансом.
+      parameters:
+      - description: Поля для обновления
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.updateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.meResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Обновить профиль
+      tags:
+      - me
+  /me/transactions:
+    get:
+      description: Страница журнала движений фантиков (новые — первыми), размер страницы
+        50.
+      parameters:
+      - default: 1
+        description: Номер страницы (с 1)
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.transactionsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: История транзакций
+      tags:
+      - me
+securityDefinitions:
+  BearerAuth:
+    description: 'Введите access-токен в формате: Bearer <access_token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

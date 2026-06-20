@@ -14,75 +14,76 @@
 ## M0. Каркас проекта
 
 ### Репозиторий и структура
-- [ ] 🟢 Создать git-репозиторий, добавить `.gitignore` для Go (+ `.env`, `web/node_modules`, бинарники)
-- [ ] 🟢 Инициализировать Go-модуль: `go mod init github.com/<you>/fanticbet`
-- [ ] 🟢 Создать дерево каталогов: `cmd/server/`, `internal/{config,domain,handler,service,repository,oddsapi,worker}/`, `migrations/`, `web/`
-- [ ] 🟢 Добавить `README.md` со стартовыми инструкциями (как поднять локально)
+- [x] 🟢 Создать git-репозиторий, добавить `.gitignore` для Go (+ `.env`, `web/node_modules`, бинарники)
+- [x] 🟢 Инициализировать Go-модуль: `go mod init github.com/<you>/fanticbet`
+- [x] 🟢 Создать дерево каталогов: `cmd/server/`, `internal/{config,domain,handler,service,repository,oddsapi,worker}/`, `migrations/`, `web/`
+- [x] 🟢 Добавить `README.md` со стартовыми инструкциями (как поднять локально)
 
 ### Конфигурация и окружение
-- [ ] 🟢 Подключить базовые зависимости: `gin-gonic/gin`, драйвер БД (`jackc/pgx` или GORM), `joho/godotenv` (или `spf13/viper`)
-- [ ] 🟢 Создать `.env.example` и `.env` с ключами: `APP_PORT`, `DB_DSN`, `JWT_SECRET`, `ODDS_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BOOKMAKER`, `SPORTS`, `SIGNUP_BONUS`, `BET_MIN`, `BET_MAX`
-- [ ] 🟢 Реализовать пакет `internal/config`: чтение env в типизированную структуру `Config` с дефолтами и валидацией обязательных полей
+- [x] 🟢 Подключить базовые зависимости: `gin-gonic/gin`, драйвер БД (`jackc/pgx` или GORM), `joho/godotenv` (или `spf13/viper`)
+- [x] 🟢 Создать `.env.example` и `.env` с ключами: `APP_PORT`, `DB_DSN`, `JWT_SECRET`, `ODDS_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BOOKMAKER`, `SPORTS`, `SIGNUP_BONUS`, `BET_MIN`, `BET_MAX`
+- [x] 🟢 Реализовать пакет `internal/config`: чтение env в типизированную структуру `Config` с дефолтами и валидацией обязательных полей
 
 ### База данных и Docker
-- [ ] 🟢 Написать `docker-compose.yml` с сервисом `postgres:16` (volume, порт, env)
+- [x] 🟢 Написать `docker-compose.yml` с сервисом `postgres:16` (volume, порт, env)
 - [ ] 🟢 Поднять Postgres локально, проверить подключение через `psql`/GUI
-- [ ] 🟢 Установить `golang-migrate` (CLI) и добавить Makefile-таргеты `migrate-up` / `migrate-down` / `migrate-new`
-- [ ] 🟢 Реализовать подключение к БД в коде (пул соединений) + `Ping()` при старте
+- [x] 🟢 Установить `golang-migrate` (CLI) и добавить Makefile-таргеты `migrate-up` / `migrate-down` / `migrate-new`
+- [x] 🟢 Реализовать подключение к БД в коде (пул соединений) + `Ping()` при старте
 
 ### HTTP-каркас
-- [ ] 🟢 Написать `cmd/server/main.go`: загрузка конфига → подключение к БД → инициализация роутера Gin → запуск
-- [ ] 🟢 Добавить эндпоинт `GET /health` (проверка БД)
-- [ ] 🟢 Middleware логирования запросов (метод, путь, статус, latency)
-- [ ] 🟢 Хелпер единого формата ошибок: `{"error": {"code", "message"}}` + функции-обёртки
-- [ ] 🟢 Middleware CORS (для dev-фронта)
-- [ ] 🟡 Скелет graceful shutdown HTTP-сервера (перехват SIGINT/SIGTERM, `http.Server.Shutdown`)
+- [x] 🟢 Написать `cmd/server/main.go`: загрузка конфига → подключение к БД → инициализация роутера Gin → запуск
+- [x] 🟢 Добавить эндпоинт `GET /health` (проверка БД)
+- [x] 🟢 Middleware логирования запросов (метод, путь, статус, latency)
+- [x] 🟢 Хелпер единого формата ошибок: `{"error": {"code", "message"}}` + функции-обёртки
+- [x] 🟢 Middleware CORS (для dev-фронта)
+- [x] 🟡 Скелет graceful shutdown HTTP-сервера (перехват SIGINT/SIGTERM, `http.Server.Shutdown`)
 
 ---
 
 ## M1. Авторизация и кошелёк
 
 ### Миграции
-- [ ] 🟢 Миграция `users` (+ unique email)
-- [ ] 🟢 Миграция `auth_identities` (+ unique provider+provider_user_id)
-- [ ] 🟢 Миграция `refresh_tokens`
-- [ ] 🟢 Миграция `wallets` (+ CHECK balance >= 0)
-- [ ] 🟢 Миграция `wallet_transactions` (+ индекс по user_id, created_at)
+- [x] 🟢 Миграция `users` (+ unique email)
+- [x] 🟢 Миграция `auth_identities` (+ unique provider+provider_user_id)
+- [x] 🟢 Миграция `refresh_tokens`
+- [x] 🟢 Миграция `wallets` (+ CHECK balance >= 0)
+- [x] 🟢 Миграция `wallet_transactions` (+ индекс по user_id, created_at)
 
 ### Domain-структуры
-- [ ] 🟢 Описать структуры: `User`, `Wallet`, `WalletTransaction`, `RefreshToken`, `AuthIdentity` в `internal/domain`
-- [ ] 🟢 Завести константы типов транзакций (`signup_bonus`, `bet_stake`, `bet_payout`, `bet_refund`, `admin_adjust`) и ролей (`user`, `admin`)
+- [x] 🟢 Описать структуры: `User`, `Wallet`, `WalletTransaction`, `RefreshToken`, `AuthIdentity` в `internal/domain`
+- [x] 🟢 Завести константы типов транзакций (`signup_bonus`, `bet_stake`, `bet_payout`, `bet_refund`, `admin_adjust`) и ролей (`user`, `admin`)
 
 ### Репозитории
-- [ ] 🟡 `UserRepository`: `Create`, `GetByID`, `GetByEmail`, `Update`
-- [ ] 🟡 `WalletRepository`: `Create`, `GetByUserIDForUpdate` (с `SELECT ... FOR UPDATE`), `UpdateBalance`
-- [ ] 🟢 `WalletTransactionRepository`: `Create`, `ListByUser` (пагинация)
-- [ ] 🟢 `RefreshTokenRepository`: `Create`, `GetByHash`, `Revoke`
-- [ ] 🟢 `AuthIdentityRepository`: `GetByProvider`, `Create`
+- [x] 🟡 `UserRepository`: `Create`, `GetByID`, `GetByEmail`, `Update`
+- [x] 🟡 `WalletRepository`: `Create`, `GetByUserIDForUpdate` (с `SELECT ... FOR UPDATE`), `UpdateBalance`
+- [x] 🟢 `WalletTransactionRepository`: `Create`, `ListByUser` (пагинация)
+- [x] 🟢 `RefreshTokenRepository`: `Create`, `GetByHash`, `Revoke`
+- [x] 🟢 `AuthIdentityRepository`: `GetByProvider`, `Create`
 
 ### Криптография и токены
-- [ ] 🟢 Хелпер bcrypt: `HashPassword`, `CheckPassword` (cost ≥ 10)
-- [ ] 🟡 Генерация и парсинг access-JWT (HS256, claims `user_id`+`role`, TTL 15 мин)
-- [ ] 🟢 Генерация refresh-токена (32 случайных байта) + sha256-хэш для хранения
+- [x] 🟢 Хелпер bcrypt: `HashPassword`, `CheckPassword` (cost ≥ 10)
+- [x] 🟡 Генерация и парсинг access-JWT (HS256, claims `user_id`+`role`, TTL 15 мин)
+- [x] 🟢 Генерация refresh-токена (32 случайных байта) + sha256-хэш для хранения
 
 ### Сервисы
-- [ ] 🔴 `AuthService.Register` — **в одной транзакции**: создать user → wallet → начислить `signup_bonus` (запись в `wallet_transactions` + баланс)
-- [ ] 🟡 `AuthService.Login`: проверка пароля → выдача access + создание refresh
-- [ ] 🟡 `AuthService.Refresh`: проверка refresh-хэша/срока/ревокации → новый access
-- [ ] 🟢 `AuthService.Logout`: ревокация refresh-токена
-- [ ] 🟢 `UserService.GetMe` (профиль + баланс одним ответом), `UpdateProfile` (display_name, avatar)
+- [x] 🔴 `AuthService.Register` — **в одной транзакции**: создать user → wallet → начислить `signup_bonus` (запись в `wallet_transactions` + баланс)
+- [x] 🟡 `AuthService.Login`: проверка пароля → выдача access + создание refresh
+- [x] 🟡 `AuthService.Refresh`: проверка refresh-хэша/срока/ревокации → новый access
+- [x] 🟢 `AuthService.Logout`: ревокация refresh-токена
+- [x] 🟢 `UserService.GetMe` (профиль + баланс одним ответом), `UpdateProfile` (display_name, avatar)
 
 ### Handlers и middleware
-- [ ] 🟢 `POST /auth/register` (+ валидация email/пароля через validator/v10)
-- [ ] 🟢 `POST /auth/login` (refresh в httpOnly+Secure cookie)
-- [ ] 🟢 `POST /auth/refresh` (читает cookie)
-- [ ] 🟢 `POST /auth/logout`
-- [ ] 🟡 Middleware `AuthRequired` (парсит JWT, кладёт user в context)
-- [ ] 🟢 Middleware `AdminRequired` (поверх `AuthRequired`, проверка role)
-- [ ] 🟢 `GET /me`
-- [ ] 🟢 `PATCH /me`
-- [ ] 🟢 `GET /me/transactions?page=`
-- [ ] 🟡 *(тест)* Проверка регистрации: баланс кошелька = сумме транзакций после signup
+- [x] 🟢 `POST /auth/register` (+ валидация email/пароля через validator/v10)
+- [x] 🟢 `POST /auth/login` (refresh в httpOnly+Secure cookie)
+- [x] 🟢 `POST /auth/refresh` (читает cookie; для Postman — также из тела)
+- [x] 🟢 `POST /auth/logout`
+- [x] 🟡 Middleware `AuthRequired` (парсит JWT, кладёт user в context)
+- [x] 🟢 Middleware `AdminRequired` (поверх `AuthRequired`, проверка role)
+- [x] 🟢 `GET /me`
+- [x] 🟢 `PATCH /me`
+- [x] 🟢 `GET /me/transactions?page=`
+- [x] 🟢 Swagger/OpenAPI: аннотации `swaggo` на хендлерах + UI на `/swagger/index.html` (генерация `swag init` → `docs/swagger`, `make swagger`)
+- [ ] 🟡 *(тест)* Проверка регистрации: баланс кошелька = сумме транзакций после signup — *отложено: интеграционный тест handler→DB (testcontainers), либо ручная проверка через Postman*
 
 ### OAuth (Google — первая итерация)
 - [ ] 🟢 Зарегистрировать OAuth-приложение в Google Cloud, получить client_id/secret, прописать redirect URI
