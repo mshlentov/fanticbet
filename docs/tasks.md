@@ -144,7 +144,7 @@
 - [x] 🟢 Вынести `BET_MIN`/`BET_MAX` в конфиг
 
 ### Репозиторий
-- [ ] 🟡 `BetRepository`: `Create`, `GetByID`, `ListByUser` (status/page), `ListPendingByOutcomes`, `UpdateStatusSettled`
+- [x] 🟡 `BetRepository`: `Create`, `GetByID`, `ListByUser` (status/page), `ListPendingByOutcomes`, `UpdateStatusSettled`
 
 ### Размещение ставки
 - [ ] 🔴 `BettingService.PlaceBet` — **одна транзакция**:
