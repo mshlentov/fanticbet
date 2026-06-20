@@ -139,9 +139,9 @@
 ## M3. Ставки и расчёт
 
 ### Миграция и domain
-- [ ] 🟢 Миграция `bets` (+ индексы user/created_at и частичный по event WHERE status='pending')
-- [ ] 🟢 Domain-структура `Bet` + константы статусов
-- [ ] 🟢 Вынести `BET_MIN`/`BET_MAX` в конфиг
+- [x] 🟢 Миграция `bets` (+ индексы user/created_at и частичный по event WHERE status='pending')
+- [x] 🟢 Domain-структура `Bet` + константы статусов
+- [x] 🟢 Вынести `BET_MIN`/`BET_MAX` в конфиг
 
 ### Репозиторий
 - [ ] 🟡 `BetRepository`: `Create`, `GetByID`, `ListByUser` (status/page), `ListPendingByOutcomes`, `UpdateStatusSettled`
