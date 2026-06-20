@@ -42,6 +42,9 @@ func (f *fakeMarketRepo) CreateForEvent(_ context.Context, m domain.Market) (int
 	f.byEvent[m.EventID] = append(f.byEvent[m.EventID], m)
 	return m.ID, nil
 }
+func (f *fakeMarketRepo) GetByID(context.Context, int64) (domain.Market, error) {
+	return domain.Market{}, nil
+}
 func (f *fakeMarketRepo) GetByEvent(_ context.Context, eventID int64) ([]domain.Market, error) {
 	return f.byEvent[eventID], nil
 }
@@ -64,6 +67,9 @@ type fakeOutcomeRepo struct {
 func (f *fakeOutcomeRepo) Upsert(_ context.Context, o domain.Outcome) (int64, error) {
 	f.upserts = append(f.upserts, o)
 	return int64(len(f.upserts)), nil
+}
+func (f *fakeOutcomeRepo) GetByID(context.Context, int64) (domain.Outcome, error) {
+	return domain.Outcome{}, nil
 }
 func (f *fakeOutcomeRepo) GetByMarket(context.Context, int64) ([]domain.Outcome, error) {
 	return nil, nil

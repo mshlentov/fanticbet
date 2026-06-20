@@ -147,14 +147,14 @@
 - [x] 🟡 `BetRepository`: `Create`, `GetByID`, `ListByUser` (status/page), `ListPendingByOutcomes`, `UpdateStatusSettled`
 
 ### Размещение ставки
-- [ ] 🔴 `BettingService.PlaceBet` — **одна транзакция**:
+- [x] 🔴 `BettingService.PlaceBet` — **одна транзакция**:
   1. загрузить outcome→market→event, проверить `event.status='upcoming'`, `starts_at>now()`, `market.status='open'`
   2. `wallet FOR UPDATE`
   3. проверить `balance ≥ stake` и `stake ∈ [min,max]`
   4. `INSERT bet` (odds = текущий outcome.odds, `potential_payout = floor(stake*odds)`)
   5. списать с кошелька + `wallet_transactions(type='bet_stake', amount=-stake)`
-- [ ] 🟢 `POST /bets` (`{outcome_id, stake}`) + валидация
-- [ ] 🟢 `GET /me/bets?status=&page=`
+- [x] 🟢 `POST /bets` (`{outcome_id, stake}`) + валидация
+- [x] 🟢 `GET /me/bets?status=&page=`
 - [ ] 🟡 *(тест)* Конкурентная ставка: 2 параллельных запроса не уводят баланс в минус (проверка `FOR UPDATE`)
 
 ### Settlement

@@ -37,11 +37,15 @@ func (m *fakeEventRepo) UpdateStatusAndScores(context.Context, int64, domain.Eve
 }
 
 type fakeMarketRepo struct {
-	byEvent  map[int64][]domain.Market
-	byEvents func(ctx context.Context, ids []int64) ([]domain.Market, error)
+	byEvent   map[int64][]domain.Market
+	byEvents  func(ctx context.Context, ids []int64) ([]domain.Market, error)
+	getByIDFn func(ctx context.Context, id int64) (domain.Market, error)
 }
 
 func (m *fakeMarketRepo) CreateForEvent(context.Context, domain.Market) (int64, error) { return 0, nil }
+func (m *fakeMarketRepo) GetByID(ctx context.Context, id int64) (domain.Market, error) {
+	return m.getByIDFn(ctx, id)
+}
 func (m *fakeMarketRepo) GetByEvent(_ context.Context, eventID int64) ([]domain.Market, error) {
 	return m.byEvent[eventID], nil
 }
@@ -54,9 +58,13 @@ func (m *fakeMarketRepo) UpdateLine(context.Context, int64, *decimal.Decimal) er
 type fakeOutcomeRepo struct {
 	byMarket  map[int64][]domain.Outcome
 	byMarkets func(ctx context.Context, ids []int64) ([]domain.Outcome, error)
+	getByIDFn func(ctx context.Context, id int64) (domain.Outcome, error)
 }
 
 func (m *fakeOutcomeRepo) Upsert(context.Context, domain.Outcome) (int64, error) { return 0, nil }
+func (m *fakeOutcomeRepo) GetByID(ctx context.Context, id int64) (domain.Outcome, error) {
+	return m.getByIDFn(ctx, id)
+}
 func (m *fakeOutcomeRepo) GetByMarket(_ context.Context, marketID int64) ([]domain.Outcome, error) {
 	return m.byMarket[marketID], nil
 }

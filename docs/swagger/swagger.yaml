@@ -1,5 +1,35 @@
 basePath: /api/v1
 definitions:
+  handler.betDTO:
+    properties:
+      created_at:
+        type: string
+      event_id:
+        type: integer
+      id:
+        type: integer
+      odds:
+        type: number
+      outcome_id:
+        type: integer
+      potential_payout:
+        type: integer
+      settled_at:
+        type: string
+      stake:
+        type: integer
+      status:
+        type: string
+    type: object
+  handler.betsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.betDTO'
+        type: array
+      page:
+        type: integer
+    type: object
   handler.errorBody:
     properties:
       code:
@@ -94,6 +124,25 @@ definitions:
         type: number
       result:
         type: string
+    type: object
+  handler.placeBetRequest:
+    properties:
+      outcome_id:
+        minimum: 1
+        type: integer
+      stake:
+        minimum: 1
+        type: integer
+    required:
+    - outcome_id
+    - stake
+    type: object
+  handler.placeBetResponse:
+    properties:
+      balance:
+        type: integer
+      bet:
+        $ref: '#/definitions/handler.betDTO'
     type: object
   handler.refreshRequest:
     properties:
@@ -381,6 +430,51 @@ paths:
       summary: Регистрация
       tags:
       - auth
+  /bets:
+    post:
+      consumes:
+      - application/json
+      description: 'Создаёт ставку на исход: проверяет рынок/событие, блокирует кошелёк
+        (FOR UPDATE), списывает фантики и фиксирует коэффициент в одной транзакции.'
+      parameters:
+      - description: Параметры ставки
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.placeBetRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.placeBetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Разместить ставку
+      tags:
+      - bets
   /events:
     get:
       description: Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/q
@@ -516,6 +610,49 @@ paths:
       summary: Обновить профиль
       tags:
       - me
+  /me/bets:
+    get:
+      description: Страница ставок текущего пользователя (новые — первыми), размер
+        страницы 50. Фильтр по статусу опционален.
+      parameters:
+      - description: Фильтр по статусу
+        enum:
+        - pending
+        - won
+        - lost
+        - void
+        in: query
+        name: status
+        type: string
+      - default: 1
+        description: Номер страницы (с 1)
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.betsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Мои ставки
+      tags:
+      - bets
   /me/transactions:
     get:
       description: Страница журнала движений фантиков (новые — первыми), размер страницы

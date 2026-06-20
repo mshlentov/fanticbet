@@ -17,4 +17,14 @@ var (
 	ErrTokenRevoked = errors.New("token revoked")
 	// ErrTokenExpired — срок действия refresh-токена истёк.
 	ErrTokenExpired = errors.New("token expired")
+
+	// ErrInsufficientBalance — на кошельке не хватает фантиков для операции.
+	// Ставка с такой суммой невозможна; handler отдаёт insufficient_balance.
+	ErrInsufficientBalance = errors.New("insufficient balance")
+	// ErrMarketClosed — рынок/событие не принимают ставки (событие не upcoming,
+	// уже началось, рынок suspended/settled/void). handler отдаёт market_closed.
+	ErrMarketClosed = errors.New("market closed")
+	// ErrBetOutOfRange — сумма ставки вне диапазона [min, max] из конфига.
+	// handler отдаёт validation_error (это входная валидация, а не гонка).
+	ErrBetOutOfRange = errors.New("bet amount out of range")
 )

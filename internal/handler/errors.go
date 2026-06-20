@@ -42,8 +42,10 @@ func respondJSON(c *gin.Context, status int, data any) {
 //
 // Соответствие кодов — conventions.md:150-162:
 //   - ErrInvalidCredentials / ErrTokenRevoked / ErrTokenExpired → 401 unauthorized
-//   - ErrNotFound                              → 404 not_found
-//   - ErrConflict                              → 409 conflict
+//   - ErrInsufficientBalance / ErrBetOutOfRange                  → 400 (validation/insufficient_balance)
+//   - ErrMarketClosed                                             → 409 market_closed
+//   - ErrNotFound                                                 → 404 not_found
+//   - ErrConflict                                                 → 409 conflict
 func mapDomainErr(c *gin.Context, err error) bool {
 	switch {
 	case errors.Is(err, domain.ErrInvalidCredentials),
@@ -51,6 +53,15 @@ func mapDomainErr(c *gin.Context, err error) bool {
 		errors.Is(err, domain.ErrTokenExpired):
 		// Не уточняем причину — единое сообщение для всех auth-ошибок.
 		respondError(c, http.StatusUnauthorized, "unauthorized", "Неверные учётные данные или токен")
+		return true
+	case errors.Is(err, domain.ErrInsufficientBalance):
+		respondError(c, http.StatusBadRequest, "insufficient_balance", "Недостаточно фантиков для ставки")
+		return true
+	case errors.Is(err, domain.ErrBetOutOfRange):
+		respondError(c, http.StatusBadRequest, "validation_error", "Сумма ставки вне допустимого диапазона")
+		return true
+	case errors.Is(err, domain.ErrMarketClosed):
+		respondError(c, http.StatusConflict, "market_closed", "Рынок закрыт, ставка невозможна")
 		return true
 	case errors.Is(err, domain.ErrNotFound):
 		respondError(c, http.StatusNotFound, "not_found", "Ресурс не найден")

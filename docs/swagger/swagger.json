@@ -292,6 +292,75 @@
                 }
             }
         },
+        "/bets": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создаёт ставку на исход: проверяет рынок/событие, блокирует кошелёк (FOR UPDATE), списывает фантики и фиксирует коэффициент в одной транзакции.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bets"
+                ],
+                "summary": "Разместить ставку",
+                "parameters": [
+                    {
+                        "description": "Параметры ставки",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.placeBetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handler.placeBetResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "description": "Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/q опциональны.",
@@ -496,6 +565,70 @@
                 }
             }
         },
+        "/me/bets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Страница ставок текущего пользователя (новые — первыми), размер страницы 50. Фильтр по статусу опционален.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bets"
+                ],
+                "summary": "Мои ставки",
+                "parameters": [
+                    {
+                        "enum": [
+                            "pending",
+                            "won",
+                            "lost",
+                            "void"
+                        ],
+                        "type": "string",
+                        "description": "Фильтр по статусу",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Номер страницы (с 1)",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.betsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/me/transactions": {
             "get": {
                 "security": [
@@ -570,6 +703,52 @@
         }
     },
     "definitions": {
+        "handler.betDTO": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "event_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "odds": {
+                    "type": "number"
+                },
+                "outcome_id": {
+                    "type": "integer"
+                },
+                "potential_payout": {
+                    "type": "integer"
+                },
+                "settled_at": {
+                    "type": "string"
+                },
+                "stake": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.betsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.betDTO"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                }
+            }
+        },
         "handler.errorBody": {
             "type": "object",
             "properties": {
@@ -712,6 +891,34 @@
                 },
                 "result": {
                     "type": "string"
+                }
+            }
+        },
+        "handler.placeBetRequest": {
+            "type": "object",
+            "required": [
+                "outcome_id",
+                "stake"
+            ],
+            "properties": {
+                "outcome_id": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "stake": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "handler.placeBetResponse": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "integer"
+                },
+                "bet": {
+                    "$ref": "#/definitions/handler.betDTO"
                 }
             }
         },

@@ -16,6 +16,9 @@ type OutcomeRepository interface {
 	// Первый прогон OddsSyncWorker создаёт исход, последующие обновляют label и odds.
 	// Требует уникального индекса idx_outcomes_market_code (миграция 000009).
 	Upsert(ctx context.Context, o domain.Outcome) (int64, error)
+	// GetByID возвращает исход по id (domain.ErrNotFound, если нет). Используется
+	// BettingService.PlaceBet: по outcome_id проверяем доступность ставки.
+	GetByID(ctx context.Context, id int64) (domain.Outcome, error)
 	// GetByMarket возвращает все исходы рынка (порядок по id).
 	GetByMarket(ctx context.Context, marketID int64) ([]domain.Outcome, error)
 	// GetByMarkets возвращает исходы сразу нескольких рынков одним запросом
@@ -57,6 +60,22 @@ func (r *OutcomeRepositoryImpl) Upsert(ctx context.Context, o domain.Outcome) (i
 		return 0, fmt.Errorf("OutcomeRepository.Upsert market_id=%d code=%s: %w", o.MarketID, o.Code, mapErr(err))
 	}
 	return id, nil
+}
+
+func (r *OutcomeRepositoryImpl) GetByID(ctx context.Context, id int64) (domain.Outcome, error) {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	const sql = `
+		SELECT id, market_id, code, label, odds, result
+		FROM outcomes
+		WHERE id = $1`
+
+	var o domain.Outcome
+	err := q.QueryRow(ctx, sql, id).Scan(&o.ID, &o.MarketID, &o.Code, &o.Label, &o.Odds, &o.Result)
+	if err != nil {
+		return domain.Outcome{}, fmt.Errorf("OutcomeRepository.GetByID id=%d: %w", id, mapErr(err))
+	}
+	return o, nil
 }
 
 func (r *OutcomeRepositoryImpl) GetByMarket(ctx context.Context, marketID int64) ([]domain.Outcome, error) {

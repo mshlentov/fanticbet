@@ -17,8 +17,8 @@ import (
 // ошибку — пробрасывает. Так можно тестировать «транзакционную» логику сервиса
 // без pgxpool.
 type fakeTxRunner struct {
-	err error // если задано — возвращается вместо вызова fn
-	calls int
+	err    error // если задано — возвращается вместо вызова fn
+	calls  int
 	lastFn func(ctx context.Context) error
 }
 
@@ -128,10 +128,10 @@ func (m *fakeAuthIdentityRepo) Create(ctx context.Context, identity domain.AuthI
 // --- RefreshTokenRepository mock ---
 
 type fakeRefreshRepo struct {
-	createFn     func(ctx context.Context, t domain.RefreshToken) (int64, error)
-	getByHashFn  func(ctx context.Context, hash string) (domain.RefreshToken, error)
-	revokeFn     func(ctx context.Context, id int64) error
-	revokeCalls  []int64 // все id, переданные в Revoke
+	createFn    func(ctx context.Context, t domain.RefreshToken) (int64, error)
+	getByHashFn func(ctx context.Context, hash string) (domain.RefreshToken, error)
+	revokeFn    func(ctx context.Context, id int64) error
+	revokeCalls []int64 // все id, переданные в Revoke
 }
 
 func (m *fakeRefreshRepo) Create(ctx context.Context, t domain.RefreshToken) (int64, error) {
@@ -143,4 +143,35 @@ func (m *fakeRefreshRepo) GetByHash(ctx context.Context, hash string) (domain.Re
 func (m *fakeRefreshRepo) Revoke(ctx context.Context, id int64) error {
 	m.revokeCalls = append(m.revokeCalls, id)
 	return m.revokeFn(ctx, id)
+}
+
+// --- BetRepository mock ---
+
+type fakeBetRepo struct {
+	createFn        func(ctx context.Context, b domain.Bet) (int64, error)
+	getByIDFn       func(ctx context.Context, id int64) (domain.Bet, error)
+	listByUserFn    func(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error)
+	listPendingFn   func(ctx context.Context, outcomeIDs []int64) ([]domain.Bet, error)
+	updateSettledFn func(ctx context.Context, id int64, status domain.BetStatus, settledAt time.Time) error
+	lastCreated     domain.Bet
+}
+
+func (m *fakeBetRepo) Create(ctx context.Context, b domain.Bet) (int64, error) {
+	m.lastCreated = b
+	return m.createFn(ctx, b)
+}
+func (m *fakeBetRepo) GetByID(ctx context.Context, id int64) (domain.Bet, error) {
+	return m.getByIDFn(ctx, id)
+}
+func (m *fakeBetRepo) ListByUser(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error) {
+	return m.listByUserFn(ctx, userID, status, page)
+}
+func (m *fakeBetRepo) ListPendingByOutcomes(ctx context.Context, outcomeIDs []int64) ([]domain.Bet, error) {
+	if m.listPendingFn != nil {
+		return m.listPendingFn(ctx, outcomeIDs)
+	}
+	return nil, nil
+}
+func (m *fakeBetRepo) UpdateStatusSettled(ctx context.Context, id int64, status domain.BetStatus, settledAt time.Time) error {
+	return m.updateSettledFn(ctx, id, status, settledAt)
 }

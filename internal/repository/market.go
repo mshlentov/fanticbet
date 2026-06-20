@@ -16,6 +16,9 @@ type MarketRepository interface {
 	// EventSyncWorker для новых событий (ML/TOTALS) или админ (CUSTOM); далее
 	// меняется только статус и наполнение исходов.
 	CreateForEvent(ctx context.Context, m domain.Market) (int64, error)
+	// GetByID возвращает рынок по id (domain.ErrNotFound, если нет). Используется
+	// BettingService.PlaceBet: по market outcome'а проверяем, что рынок открыт.
+	GetByID(ctx context.Context, id int64) (domain.Market, error)
 	// GetByEvent возвращает все рынки события (без сортировки по бизнес-смыслу,
 	// порядок по id).
 	GetByEvent(ctx context.Context, eventID int64) ([]domain.Market, error)
@@ -53,6 +56,22 @@ func (r *MarketRepositoryImpl) CreateForEvent(ctx context.Context, m domain.Mark
 		return 0, fmt.Errorf("MarketRepository.CreateForEvent event_id=%d type=%s: %w", m.EventID, m.Type, mapErr(err))
 	}
 	return id, nil
+}
+
+func (r *MarketRepositoryImpl) GetByID(ctx context.Context, id int64) (domain.Market, error) {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	const sql = `
+		SELECT id, event_id, type, line, question, status
+		FROM markets
+		WHERE id = $1`
+
+	var m domain.Market
+	err := q.QueryRow(ctx, sql, id).Scan(&m.ID, &m.EventID, &m.Type, &m.Line, &m.Question, &m.Status)
+	if err != nil {
+		return domain.Market{}, fmt.Errorf("MarketRepository.GetByID id=%d: %w", id, mapErr(err))
+	}
+	return m, nil
 }
 
 func (r *MarketRepositoryImpl) GetByEvent(ctx context.Context, eventID int64) ([]domain.Market, error) {
