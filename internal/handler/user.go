@@ -57,7 +57,23 @@ type transactionResponse struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+// transactionsResponse — страница истории: номер страницы + элементы.
+type transactionsResponse struct {
+	Page  int                   `json:"page"`
+	Items []transactionResponse `json:"items"`
+}
+
 // GetMe — профиль текущего пользователя + баланс.
+//
+// @Summary      Мой профиль
+// @Description  Возвращает профиль текущего пользователя и баланс кошелька.
+// @Tags         me
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200   {object}  meResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /me [get]
 func (h *UserHandler) GetMe(c *gin.Context) {
 	userID, ok := middleware.UserIDFromContext(c)
 	if !ok {
@@ -81,6 +97,19 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 
 // UpdateMe — частичное обновление профиля (display_name, avatar). nil-поля
 // сохраняют текущие значения.
+//
+// @Summary      Обновить профиль
+// @Description  Частично обновляет профиль. Незаданные поля сохраняют текущее значение. Возвращает обновлённый профиль с балансом.
+// @Tags         me
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      updateProfileRequest  true  "Поля для обновления"
+// @Success      200   {object}  meResponse
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /me [patch]
 func (h *UserHandler) UpdateMe(c *gin.Context) {
 	userID, ok := middleware.UserIDFromContext(c)
 	if !ok {
@@ -116,6 +145,17 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 }
 
 // Transactions — страница истории движений по кошельку. ?page= (по умолчанию 1).
+//
+// @Summary      История транзакций
+// @Description  Страница журнала движений фантиков (новые — первыми), размер страницы 50.
+// @Tags         me
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page  query     int  false  "Номер страницы (с 1)"  default(1)
+// @Success      200   {object}  transactionsResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /me/transactions [get]
 func (h *UserHandler) Transactions(c *gin.Context) {
 	userID, ok := middleware.UserIDFromContext(c)
 	if !ok {
@@ -144,7 +184,7 @@ func (h *UserHandler) Transactions(c *gin.Context) {
 	for _, t := range txs {
 		items = append(items, toTransactionDTO(t))
 	}
-	respondJSON(c, http.StatusOK, gin.H{"page": page, "items": items})
+	respondJSON(c, http.StatusOK, transactionsResponse{Page: page, Items: items})
 }
 
 // toUserDTO маппит domain.User в DTO без PasswordHash (изоляция секретов).

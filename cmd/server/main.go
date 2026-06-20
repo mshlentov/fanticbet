@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "fanticbet/docs/swagger" // сгенерированная Swagger-спека (swag init)
 	"fanticbet/internal/config"
 	"fanticbet/internal/handler"
 	"fanticbet/internal/handler/middleware"
@@ -20,7 +21,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	swaggerfiles "github.com/swaggo/files"
+	ginswagger "github.com/swaggo/gin-swagger"
 )
+
+// @title                       FanticBet API
+// @version                     1.0
+// @description                 REST API платформы ставок на фантики. На текущем этапе (M1) реализованы аутентификация и профиль пользователя.
+// @BasePath                    /api/v1
+// @securityDefinitions.apikey  BearerAuth
+// @in                          header
+// @name                        Authorization
+// @description                 Введите access-токен в формате: Bearer <access_token>
 
 func main() {
 	// Load .env file
@@ -83,6 +95,11 @@ func main() {
 
 	// Health endpoint
 	r.GET("/health", handler.Health(pool))
+
+	// Swagger UI: интерактивная документация на /swagger/index.html (только dev).
+	if gin.Mode() != gin.ReleaseMode {
+		r.GET("/swagger/*any", ginswagger.WrapHandler(swaggerfiles.Handler))
+	}
 
 	// API v1
 	v1 := r.Group("/api/v1")

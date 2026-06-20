@@ -204,6 +204,8 @@ CREATE INDEX idx_bets_event   ON bets(event_id) WHERE status = 'pending';
 
 Префикс `/api/v1`. Авторизация: `Authorization: Bearer <access JWT>`; refresh — httpOnly cookie. Ответы — JSON, ошибки в формате `{"error": {"code": "...", "message": "..."}}`.
 
+**Интерактивная документация (Swagger/OpenAPI).** API описывается аннотациями `swaggo/swag` прямо над хендлерами (теги `@Summary`, `@Param`, `@Success`, `@Router`, `@Security BearerAuth`). Спека генерируется командой `swag init -g cmd/server/main.go -o docs/swagger` (или `make swagger`) в пакет `docs/swagger` (`swagger.json` + `swagger.yaml` + `docs.go`); сгенерированные файлы коммитятся, чтобы сборка не зависела от наличия CLI. UI поднимается на `GET /swagger/index.html` через `swaggo/gin-swagger` и доступен только вне `release`-режима (в prod отключён). При изменении DTO или ручек спеку нужно перегенерировать. Краткий человекочитаемый справочник по auth-ручкам — в [api-auth.md](api-auth.md).
+
 ### Auth
 
 | Метод | Путь | Описание |

@@ -82,6 +82,7 @@
 - [x] 🟢 `GET /me`
 - [x] 🟢 `PATCH /me`
 - [x] 🟢 `GET /me/transactions?page=`
+- [x] 🟢 Swagger/OpenAPI: аннотации `swaggo` на хендлерах + UI на `/swagger/index.html` (генерация `swag init` → `docs/swagger`, `make swagger`)
 - [ ] 🟡 *(тест)* Проверка регистрации: баланс кошелька = сумме транзакций после signup — *отложено: интеграционный тест handler→DB (testcontainers), либо ручная проверка через Postman*
 
 ### OAuth (Google — первая итерация)

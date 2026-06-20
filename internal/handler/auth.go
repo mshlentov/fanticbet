@@ -67,6 +67,18 @@ type tokenResponse struct {
 
 // Register — регистрация по email+паролю. Успех → 200 + access в теле, refresh
 // в cookie. Дубликат email → 409 (ErrConflict из сервиса).
+//
+// @Summary      Регистрация
+// @Description  Создаёт пользователя, кошелёк и начисляет signup-бонус. Возвращает access-токен; refresh-токен — в httpOnly-cookie.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      registerRequest  true  "Данные регистрации"
+// @Success      200   {object}  tokenResponse
+// @Failure      400   {object}  errorResponse
+// @Failure      409   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -87,6 +99,18 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 // Login — вход по email+паролю. Неверные данные → 401 (ErrInvalidCredentials).
+//
+// @Summary      Вход
+// @Description  Проверяет email+пароль, возвращает access-токен; refresh-токен — в httpOnly-cookie.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      loginRequest  true  "Учётные данные"
+// @Success      200   {object}  tokenResponse
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -108,6 +132,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // Refresh — обмен refresh-токена на новый access. Токен читается из cookie
 // (или из тела для Postman). Невалидный/отозванный/истёкший → 401.
+//
+// @Summary      Обновление access-токена
+// @Description  Берёт refresh-токен из httpOnly-cookie (или из тела) и выдаёт новый access-токен.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      refreshRequest  false  "Refresh-токен (опционально, если нет cookie)"
+// @Success      200   {object}  tokenResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /auth/refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	refreshToken, ok := h.refreshFromRequest(c)
 	if !ok {
@@ -131,6 +166,16 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 // Logout — отзыв refresh-токена и очистка cookie. Идемпотентен: отсутствие
 // токена не ошибка (сервис трактует как уже-разлогиненного).
+//
+// @Summary      Выход
+// @Description  Отзывает refresh-токен и очищает cookie. Идемпотентно.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      refreshRequest  false  "Refresh-токен (опционально, если нет cookie)"
+// @Success      200   {object}  map[string]string
+// @Failure      500   {object}  errorResponse
+// @Router       /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	refreshToken, ok := h.refreshFromRequest(c)
 	if ok {

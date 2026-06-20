@@ -1,4 +1,4 @@
-.PHONY: run build migrate-up migrate-down migrate-new docker-up docker-down
+.PHONY: run build swagger migrate-up migrate-down migrate-new docker-up docker-down docker-logs
 
 # ─── Запуск ────────────────────────────────────────────
 
@@ -7,6 +7,14 @@ run:
 
 build:
 	go build -o bin/server cmd/server/main.go
+
+# ─── Swagger ───────────────────────────────────────────
+# Перегенерация OpenAPI-спеки в docs/swagger из аннотаций в коде.
+# Требуется swag CLI: go install github.com/swaggo/swag/cmd/swag@latest
+# UI доступен на http://localhost:8080/swagger/index.html (не в release-режиме).
+
+swagger:
+	swag init -g cmd/server/main.go -o docs/swagger --parseInternal
 
 # ─── Миграции (требуется golang-migrate CLI) ───────────
 # Установка: https://github.com/golang-migrate/migrate/tree/master/cmd/migrate

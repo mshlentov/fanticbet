@@ -13,8 +13,15 @@ import (
 // errorBody — единый формат ответа об ошибке (conventions.md:144-148).
 // Отдаётся как {"error": {"code": "...", "message": "..."}}.
 type errorBody struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code    string `json:"code" example:"validation_error"`
+	Message string `json:"message" example:"Неверные данные запроса"`
+}
+
+// errorResponse — обёртка для документации Swagger: описывает полный конверт
+// ответа об ошибке {"error": {...}}. В рантайме не используется (ответы шлёт
+// respondError через gin.H), нужна только для аннотаций @Failure.
+type errorResponse struct {
+	Error errorBody `json:"error"`
 }
 
 // respondError шлёт ответ об ошибке в едином формате.
