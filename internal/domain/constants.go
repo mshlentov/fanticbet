@@ -31,3 +31,73 @@ const (
 	ProviderVK     Provider = "vk"
 	ProviderYandex Provider = "yandex"
 )
+
+// Источник события. Совпадает со значениями колонки events.source.
+// 'oddsapi' — событие из Odds-API (есть external_id); 'custom' — кастомное
+// событие, созданное админом (external_id = NULL).
+type EventSource string
+
+const (
+	SourceOddsAPI EventSource = "oddsapi"
+	SourceCustom  EventSource = "custom"
+)
+
+// Статусы события. Совпадают со значениями колонки events.status.
+// Жизненный цикл: upcoming → live → settled; cancelled — отмена (void ставок).
+type EventStatus string
+
+const (
+	EventUpcoming  EventStatus = "upcoming"  // ещё не началось, ставки открыты
+	EventLive      EventStatus = "live"      // идёт, ставки закрыты
+	EventSettled   EventStatus = "settled"   // завершено и рассчитано
+	EventCancelled EventStatus = "cancelled" // отменено, ставки возвращены
+)
+
+// Типы рынков. Совпадают со значениями колонки markets.type.
+// ML — исход матча (1X2 / победитель); TOTALS — тотал (over/under по линии);
+// CUSTOM — произвольный рынок кастомного события.
+type MarketType string
+
+const (
+	MarketML     MarketType = "ML"
+	MarketTotals MarketType = "TOTALS"
+	MarketCustom MarketType = "CUSTOM"
+)
+
+// Статусы рынка. Совпадают со значениями колонки markets.status.
+// open — приём ставок; suspended — букмекер снял рынок (временно закрыт);
+// settled — рассчитан; void — аннулирован (возврат ставок).
+type MarketStatus string
+
+const (
+	MarketOpen      MarketStatus = "open"
+	MarketSuspended MarketStatus = "suspended"
+	MarketSettled   MarketStatus = "settled"
+	MarketVoid      MarketStatus = "void"
+)
+
+// Коды исходов. Совпадают со значениями колонки outcomes.code. Для CUSTOM-рынков
+// коды формируются как opt_1, opt_2, … (см. OutcomeCustomPrefix).
+type OutcomeCode string
+
+const (
+	OutcomeHome  OutcomeCode = "home"  // победа хозяев (ML)
+	OutcomeDraw  OutcomeCode = "draw"  // ничья (ML)
+	OutcomeAway  OutcomeCode = "away"  // победа гостей (ML)
+	OutcomeOver  OutcomeCode = "over"  // тотал больше линии (TOTALS)
+	OutcomeUnder OutcomeCode = "under" // тотал меньше линии (TOTALS)
+)
+
+// OutcomeCustomPrefix — префикс кодов исходов кастомного рынка (opt_1, opt_2, …).
+const OutcomeCustomPrefix = "opt_"
+
+// Результаты исхода/ставки. Совпадают со значениями колонок outcomes.result и
+// bets.status (кроме pending, который относится только к ставке). NULL в
+// outcomes.result означает «ещё не рассчитан».
+type Result string
+
+const (
+	ResultWon  Result = "won"  // выигрыш
+	ResultLost Result = "lost" // проигрыш
+	ResultVoid Result = "void" // возврат (push / отмена)
+)

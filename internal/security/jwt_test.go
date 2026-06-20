@@ -37,7 +37,10 @@ func TestJWTManager_IssueAndParse_Roundtrip(t *testing.T) {
 		t.Fatalf("NewJWTManager error: %v", err)
 	}
 
-	now := time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC)
+	// Привязываем issue-время к реальным часам, чтобы exp всегда был в будущем
+	// и Parse (валидирует exp по time.Now()) не отклонял свежий токен.
+	// Проверка TTL ниже сравнивает exp-iat и от абсолютного времени не зависит.
+	now := time.Now()
 	tok, err := mgr.Issue(42, domain.RoleAdmin, now)
 	if err != nil {
 		t.Fatalf("Issue error: %v", err)

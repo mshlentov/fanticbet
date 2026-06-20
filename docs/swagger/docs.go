@@ -299,6 +299,118 @@ const docTemplate = `{
                 }
             }
         },
+        "/events": {
+            "get": {
+                "description": "Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/q опциональны.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "events"
+                ],
+                "summary": "Лента событий",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Фильтр по виду спорта (sport_slug)",
+                        "name": "sport",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "upcoming",
+                            "live",
+                            "settled",
+                            "cancelled"
+                        ],
+                        "type": "string",
+                        "description": "Фильтр по статусу",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Поиск по названию события",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Номер страницы (с 1)",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.eventsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/events/{id}": {
+            "get": {
+                "description": "Событие со всеми рынками и исходами (текущие коэффициенты).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "events"
+                ],
+                "summary": "Событие",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID события",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.eventDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/me": {
             "get": {
                 "security": [
@@ -436,6 +548,32 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/sports": {
+            "get": {
+                "description": "Список видов спорта, по которым есть события в БД (всегда включает custom).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "events"
+                ],
+                "summary": "Виды спорта",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.sportsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -460,6 +598,58 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.eventDTO": {
+            "type": "object",
+            "properties": {
+                "away": {
+                    "type": "string"
+                },
+                "home": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "league_name": {
+                    "type": "string"
+                },
+                "markets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.marketDTO"
+                    }
+                },
+                "source": {
+                    "type": "string"
+                },
+                "sport_slug": {
+                    "type": "string"
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.eventsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.eventDTO"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                }
+            }
+        },
         "handler.loginRequest": {
             "type": "object",
             "required": [
@@ -475,6 +665,32 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.marketDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "line": {
+                    "type": "number"
+                },
+                "outcomes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.outcomeDTO"
+                    }
+                },
+                "question": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.meResponse": {
             "type": "object",
             "properties": {
@@ -483,6 +699,26 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/handler.userDTO"
+                }
+            }
+        },
+        "handler.outcomeDTO": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "odds": {
+                    "type": "number"
+                },
+                "result": {
+                    "type": "string"
                 }
             }
         },
@@ -512,6 +748,17 @@ const docTemplate = `{
                 "password": {
                     "type": "string",
                     "minLength": 8
+                }
+            }
+        },
+        "handler.sportsResponse": {
+            "type": "object",
+            "properties": {
+                "sports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

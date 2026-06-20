@@ -103,36 +103,36 @@
 ## M2. События из Odds-API
 
 ### Миграции и domain
-- [ ] 🟢 Миграция `events` (+ unique source+external_id, индекс status+starts_at)
-- [ ] 🟢 Миграция `markets` (+ индекс event_id)
-- [ ] 🟢 Миграция `outcomes` (+ индекс market_id, CHECK odds > 1.0)
-- [ ] 🟢 Domain-структуры `Event`, `Market`, `Outcome` + константы (типы рынков `ML`/`TOTALS`/`CUSTOM`, статусы)
+- [x] 🟢 Миграция `events` (+ unique source+external_id, индекс status+starts_at)
+- [x] 🟢 Миграция `markets` (+ индекс event_id)
+- [x] 🟢 Миграция `outcomes` (+ индекс market_id, CHECK odds > 1.0)
+- [x] 🟢 Domain-структуры `Event`, `Market`, `Outcome` + константы (типы рынков `ML`/`TOTALS`/`CUSTOM`, статусы)
 
 ### Клиент Odds-API (`internal/oddsapi`)
-- [ ] 🟢 Изучить документацию API (загрузить `https://docs.odds-api.io/llms-full.txt`), зафиксировать формат ответов events/odds/scores
-- [ ] 🟢 Базовый HTTP-клиент с базовым URL и apiKey в query, общий метод `do()`
-- [ ] 🟢 Метод `GetSports()`
-- [ ] 🟡 Метод `GetEvents(sport, status)` + маппинг ответа в domain
-- [ ] 🟡 Метод `GetOddsMulti(eventIds []int, bookmakers)` (до 10 событий за запрос)
-- [ ] 🟢 Метод `GetEvent(id)` (для settlement, чтение `scores`)
-- [ ] 🟡 Ретраи с backoff на 5xx/таймауты
-- [ ] 🟢 Логирование остатка лимита из заголовка `x-ratelimit-remaining`
+- [x] 🟢 Изучить документацию API (загрузить `https://docs.odds-api.io/llms-full.txt`), зафиксировать формат ответов events/odds/scores
+- [x] 🟢 Базовый HTTP-клиент с базовым URL и apiKey в query, общий метод `do()`
+- [x] 🟢 Метод `GetSports()`
+- [x] 🟡 Метод `GetEvents(sport, status)` + маппинг ответа в domain
+- [x] 🟡 Метод `GetOddsMulti(eventIds []int, bookmakers)` (до 10 событий за запрос)
+- [x] 🟢 Метод `GetEvent(id)` (для settlement, чтение `scores`)
+- [x] 🟡 Ретраи с backoff на 5xx/таймауты
+- [x] 🟢 Логирование остатка лимита из заголовка `x-ratelimit-remaining`
 
 ### Репозитории
-- [ ] 🟡 `EventRepository`: `Upsert` (по source+external_id), `GetByID`, `ListWithFilters` (sport/status/q/page), `ListForOddsSync` (upcoming, старт ≤ 48ч), `ListForSettlement` (upcoming/live, started), `UpdateStatusAndScores`
-- [ ] 🟢 `MarketRepository`: `CreateForEvent`, `GetByEvent`, `UpdateStatus`
-- [ ] 🟢 `OutcomeRepository`: `Upsert`, `GetByMarket`, `UpdateOdds`, `UpdateResult`
+- [x] 🟡 `EventRepository`: `Upsert` (по source+external_id), `GetByID`, `ListWithFilters` (sport/status/q/page), `ListForOddsSync` (upcoming, старт ≤ 48ч), `ListForSettlement` (upcoming/live, started), `UpdateStatusAndScores`
+- [x] 🟢 `MarketRepository`: `CreateForEvent`, `GetByEvent`, `UpdateStatus`
+- [x] 🟢 `OutcomeRepository`: `Upsert`, `GetByMarket`, `UpdateOdds`, `UpdateResult`
 
 ### Воркеры
-- [ ] 🟢 Подключить `robfig/cron/v3`, общий раннер воркеров
-- [ ] 🔴 `EventSyncWorker` (каждые 15 мин): по спортам из конфига → `GetEvents` → upsert событий → для новых создать markets ML/TOTALS с пустыми outcomes → перевод upcoming→live по статусу API
-- [ ] 🔴 `OddsSyncWorker` (каждые 2–3 мин): выбрать события из БД → пачки по 10 → `GetOddsMulti` → обновить odds; для TOTALS выбрать основную линию (ближайшую к 1.90/1.90); снятый рынок → `suspended`; начавшиеся не трогать
-- [ ] 🟡 Подключить воркеры в `main`, корректная остановка по shutdown-сигналу
+- [x] 🟢 Подключить `robfig/cron/v3`, общий раннер воркеров (расписания из конфига; `SkipIfStillRunning`; ctx с таймаутом на итерацию)
+- [x] 🔴 `EventSyncWorker` (раз в час — бесплатный тариф API): по спортам из конфига → `GetEvents` → upsert событий → для новых создать markets ML/TOTALS с пустыми outcomes → перевод upcoming→live по статусу API
+- [x] 🔴 `OddsSyncWorker` (раз в 30 мин — бесплатный тариф API): выбрать события из БД → пачки по 10 → `GetOddsMulti` → обновить odds; для TOTALS выбрать основную линию (ближайшую к 1.90/1.90); снятый рынок → `suspended`; начавшиеся не трогать
+- [x] 🟡 Подключить воркеры в `main`, корректная остановка по shutdown-сигналу
 
 ### Handlers
-- [ ] 🟢 `GET /sports` (виды спорта из БД + `custom`)
-- [ ] 🟡 `GET /events?sport=&status=&page=&q=` (лента с рынками и текущими коэффициентами)
-- [ ] 🟢 `GET /events/:id` (событие + markets + outcomes)
+- [x] 🟢 `GET /sports` (виды спорта из БД + `custom`)
+- [x] 🟡 `GET /events?sport=&status=&page=&q=` (лента с рынками и текущими коэффициентами)
+- [x] 🟢 `GET /events/:id` (событие + markets + outcomes)
 
 ---
 

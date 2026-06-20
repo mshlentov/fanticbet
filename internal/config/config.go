@@ -33,6 +33,15 @@ type Config struct {
 	Bookmaker  string
 	Sports     []string
 
+	// Расписания воркеров (cron-спеки robfig/cron). На бесплатном тарифе Odds-API
+	// лимиты жёстче, поэтому синхронизируемся реже: события — раз в час,
+	// котировки — раз в 30 минут.
+	EventSyncSchedule string
+	OddsSyncSchedule  string
+	// OddsSyncWindowHours — горизонт выборки событий для обновления котировок:
+	// берём upcoming-события, стартующие в ближайшие N часов.
+	OddsSyncWindowHours int
+
 	GoogleClientID     string
 	GoogleClientSecret string
 	GoogleRedirectURI  string
@@ -71,8 +80,12 @@ func Load() (*Config, error) {
 		CORSAllowedOrigins: splitCSV(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173")),
 
 		OddsAPIKey: getEnv("ODDS_API_KEY", ""),
-		Bookmaker:  getEnv("BOOKMAKER", "pinnacle"),
+		Bookmaker:  getEnv("BOOKMAKER", "1xbet"),
 		Sports:     splitCSV(getEnv("SPORTS", "football,basketball")),
+
+		EventSyncSchedule:   getEnv("EVENT_SYNC_SCHEDULE", "@every 1h"),
+		OddsSyncSchedule:    getEnv("ODDS_SYNC_SCHEDULE", "@every 30m"),
+		OddsSyncWindowHours: getEnvInt("ODDS_SYNC_WINDOW_HOURS", 48),
 
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
