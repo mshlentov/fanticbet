@@ -61,9 +61,9 @@
 - [ ] 🟢 `AuthIdentityRepository`: `GetByProvider`, `Create`
 
 ### Криптография и токены
-- [ ] 🟢 Хелпер bcrypt: `HashPassword`, `CheckPassword` (cost ≥ 10)
-- [ ] 🟡 Генерация и парсинг access-JWT (HS256, claims `user_id`+`role`, TTL 15 мин)
-- [ ] 🟢 Генерация refresh-токена (32 случайных байта) + sha256-хэш для хранения
+- [x] 🟢 Хелпер bcrypt: `HashPassword`, `CheckPassword` (cost ≥ 10)
+- [x] 🟡 Генерация и парсинг access-JWT (HS256, claims `user_id`+`role`, TTL 15 мин)
+- [x] 🟢 Генерация refresh-токена (32 случайных байта) + sha256-хэш для хранения
 
 ### Сервисы
 - [ ] 🔴 `AuthService.Register` — **в одной транзакции**: создать user → wallet → начислить `signup_bonus` (запись в `wallet_transactions` + баланс)
