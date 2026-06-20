@@ -49,6 +49,17 @@ func (s *UserService) GetMe(ctx context.Context, userID int64) (MeResponse, erro
 	return MeResponse{User: user, Balance: wallet.Balance}, nil
 }
 
+// ListTransactions возвращает страницу журнала движений фантиков (новые — первые).
+// page начинается с 1; размер страницы задаётся в репозитории (DefaultPageSize).
+// Прокси к репозиторию, чтобы хендлер не зависел от repository напрямую (слои).
+func (s *UserService) ListTransactions(ctx context.Context, userID int64, page int) ([]domain.WalletTransaction, error) {
+	txs, err := s.walletTx.ListByUser(ctx, userID, page)
+	if err != nil {
+		return nil, fmt.Errorf("UserService.ListTransactions user_id=%d: %w", userID, err)
+	}
+	return txs, nil
+}
+
 // UpdateProfile меняет отображаемое имя и/или аватар. Поля, которые не нужно
 // менять, приходят как nil — тогда сохраняется текущее значение. Пароль и роль
 // через этот метод не меняются (для них — отдельные операции).
