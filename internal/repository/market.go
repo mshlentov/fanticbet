@@ -19,6 +19,9 @@ type MarketRepository interface {
 	// GetByEvent возвращает все рынки события (без сортировки по бизнес-смыслу,
 	// порядок по id).
 	GetByEvent(ctx context.Context, eventID int64) ([]domain.Market, error)
+	// GetByEvents возвращает рынки сразу нескольких событий одним запросом
+	// (для ленты GET /events — чтобы не делать N+1). Порядок по event_id, id.
+	GetByEvents(ctx context.Context, eventIDs []int64) ([]domain.Market, error)
 	// UpdateStatus меняет статус рынка (open/suspended/settled/void).
 	// Возвращает domain.ErrNotFound, если рынка с таким id нет.
 	UpdateStatus(ctx context.Context, id int64, status domain.MarketStatus) error
@@ -77,6 +80,38 @@ func (r *MarketRepositoryImpl) GetByEvent(ctx context.Context, eventID int64) ([
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("MarketRepository.GetByEvent rows: %w", mapErr(err))
+	}
+	return result, nil
+}
+
+func (r *MarketRepositoryImpl) GetByEvents(ctx context.Context, eventIDs []int64) ([]domain.Market, error) {
+	if len(eventIDs) == 0 {
+		return nil, nil
+	}
+	q := QuerierFromCtx(ctx, r.pool)
+
+	const sql = `
+		SELECT id, event_id, type, line, question, status
+		FROM markets
+		WHERE event_id = ANY($1)
+		ORDER BY event_id ASC, id ASC`
+
+	rows, err := q.Query(ctx, sql, eventIDs)
+	if err != nil {
+		return nil, fmt.Errorf("MarketRepository.GetByEvents: %w", mapErr(err))
+	}
+	defer rows.Close()
+
+	var result []domain.Market
+	for rows.Next() {
+		var m domain.Market
+		if err := rows.Scan(&m.ID, &m.EventID, &m.Type, &m.Line, &m.Question, &m.Status); err != nil {
+			return nil, fmt.Errorf("MarketRepository.GetByEvents scan: %w", mapErr(err))
+		}
+		result = append(result, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("MarketRepository.GetByEvents rows: %w", mapErr(err))
 	}
 	return result, nil
 }

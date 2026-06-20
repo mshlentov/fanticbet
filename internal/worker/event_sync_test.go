@@ -27,6 +27,7 @@ func (f *fakeEventRepo) GetByID(context.Context, int64) (domain.Event, error) {
 func (f *fakeEventRepo) ListWithFilters(context.Context, repository.EventFilter) ([]domain.Event, error) {
 	return nil, nil
 }
+func (f *fakeEventRepo) ListSports(context.Context) ([]string, error) { return nil, nil }
 func (f *fakeEventRepo) ListForOddsSync(context.Context, time.Duration) ([]domain.Event, error) {
 	return f.forOdds, nil
 }

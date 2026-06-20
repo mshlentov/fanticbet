@@ -45,6 +45,9 @@ func (f *fakeMarketRepo) CreateForEvent(_ context.Context, m domain.Market) (int
 func (f *fakeMarketRepo) GetByEvent(_ context.Context, eventID int64) ([]domain.Market, error) {
 	return f.byEvent[eventID], nil
 }
+func (f *fakeMarketRepo) GetByEvents(context.Context, []int64) ([]domain.Market, error) {
+	return nil, nil
+}
 func (f *fakeMarketRepo) UpdateStatus(_ context.Context, id int64, status domain.MarketStatus) error {
 	f.statusUpdates[id] = status
 	return nil
@@ -63,6 +66,9 @@ func (f *fakeOutcomeRepo) Upsert(_ context.Context, o domain.Outcome) (int64, er
 	return int64(len(f.upserts)), nil
 }
 func (f *fakeOutcomeRepo) GetByMarket(context.Context, int64) ([]domain.Outcome, error) {
+	return nil, nil
+}
+func (f *fakeOutcomeRepo) GetByMarkets(context.Context, []int64) ([]domain.Outcome, error) {
 	return nil, nil
 }
 func (f *fakeOutcomeRepo) UpdateOdds(context.Context, int64, decimal.Decimal) error { return nil }

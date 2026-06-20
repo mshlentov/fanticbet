@@ -130,9 +130,9 @@
 - [x] 🟡 Подключить воркеры в `main`, корректная остановка по shutdown-сигналу
 
 ### Handlers
-- [ ] 🟢 `GET /sports` (виды спорта из БД + `custom`)
-- [ ] 🟡 `GET /events?sport=&status=&page=&q=` (лента с рынками и текущими коэффициентами)
-- [ ] 🟢 `GET /events/:id` (событие + markets + outcomes)
+- [x] 🟢 `GET /sports` (виды спорта из БД + `custom`)
+- [x] 🟡 `GET /events?sport=&status=&page=&q=` (лента с рынками и текущими коэффициентами)
+- [x] 🟢 `GET /events/:id` (событие + markets + outcomes)
 
 ---
 

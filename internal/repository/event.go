@@ -36,6 +36,9 @@ type EventRepository interface {
 	GetByID(ctx context.Context, id int64) (domain.Event, error)
 	// ListWithFilters возвращает страницу ленты событий (старт раньше — первым).
 	ListWithFilters(ctx context.Context, f EventFilter) ([]domain.Event, error)
+	// ListSports возвращает отсортированный список уникальных sport_slug, по
+	// которым есть события в БД. Для ленты GET /sports.
+	ListSports(ctx context.Context) ([]string, error)
 	// ListForOddsSync возвращает upcoming oddsapi-события, стартующие в ближайшие
 	// within (например, 48ч). Их выбирает OddsSyncWorker для обновления котировок.
 	ListForOddsSync(ctx context.Context, within time.Duration) ([]domain.Event, error)
@@ -152,6 +155,31 @@ func (r *EventRepositoryImpl) ListWithFilters(ctx context.Context, f EventFilter
 	defer rows.Close()
 
 	return collectEvents(rows, "EventRepository.ListWithFilters")
+}
+
+func (r *EventRepositoryImpl) ListSports(ctx context.Context) ([]string, error) {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	const sql = `SELECT DISTINCT sport_slug FROM events ORDER BY sport_slug ASC`
+
+	rows, err := q.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("EventRepository.ListSports: %w", mapErr(err))
+	}
+	defer rows.Close()
+
+	var result []string
+	for rows.Next() {
+		var slug string
+		if err := rows.Scan(&slug); err != nil {
+			return nil, fmt.Errorf("EventRepository.ListSports scan: %w", mapErr(err))
+		}
+		result = append(result, slug)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("EventRepository.ListSports rows: %w", mapErr(err))
+	}
+	return result, nil
 }
 
 func (r *EventRepositoryImpl) ListForOddsSync(ctx context.Context, within time.Duration) ([]domain.Event, error) {

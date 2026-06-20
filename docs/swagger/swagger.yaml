@@ -14,6 +14,40 @@ definitions:
       error:
         $ref: '#/definitions/handler.errorBody'
     type: object
+  handler.eventDTO:
+    properties:
+      away:
+        type: string
+      home:
+        type: string
+      id:
+        type: integer
+      league_name:
+        type: string
+      markets:
+        items:
+          $ref: '#/definitions/handler.marketDTO'
+        type: array
+      source:
+        type: string
+      sport_slug:
+        type: string
+      starts_at:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  handler.eventsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.eventDTO'
+        type: array
+      page:
+        type: integer
+    type: object
   handler.loginRequest:
     properties:
       email:
@@ -24,12 +58,42 @@ definitions:
     - email
     - password
     type: object
+  handler.marketDTO:
+    properties:
+      id:
+        type: integer
+      line:
+        type: number
+      outcomes:
+        items:
+          $ref: '#/definitions/handler.outcomeDTO'
+        type: array
+      question:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    type: object
   handler.meResponse:
     properties:
       balance:
         type: integer
       user:
         $ref: '#/definitions/handler.userDTO'
+    type: object
+  handler.outcomeDTO:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      label:
+        type: string
+      odds:
+        type: number
+      result:
+        type: string
     type: object
   handler.refreshRequest:
     properties:
@@ -50,6 +114,13 @@ definitions:
     - display_name
     - email
     - password
+    type: object
+  handler.sportsResponse:
+    properties:
+      sports:
+        items:
+          type: string
+        type: array
     type: object
   handler.tokenResponse:
     properties:
@@ -310,6 +381,82 @@ paths:
       summary: Регистрация
       tags:
       - auth
+  /events:
+    get:
+      description: Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/q
+        опциональны.
+      parameters:
+      - description: Фильтр по виду спорта (sport_slug)
+        in: query
+        name: sport
+        type: string
+      - description: Фильтр по статусу
+        enum:
+        - upcoming
+        - live
+        - settled
+        - cancelled
+        in: query
+        name: status
+        type: string
+      - description: Поиск по названию события
+        in: query
+        name: q
+        type: string
+      - default: 1
+        description: Номер страницы (с 1)
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.eventsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Лента событий
+      tags:
+      - events
+  /events/{id}:
+    get:
+      description: Событие со всеми рынками и исходами (текущие коэффициенты).
+      parameters:
+      - description: ID события
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.eventDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Событие
+      tags:
+      - events
   /me:
     get:
       description: Возвращает профиль текущего пользователя и баланс кошелька.
@@ -399,6 +546,24 @@ paths:
       summary: История транзакций
       tags:
       - me
+  /sports:
+    get:
+      description: Список видов спорта, по которым есть события в БД (всегда включает
+        custom).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.sportsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Виды спорта
+      tags:
+      - events
 securityDefinitions:
   BearerAuth:
     description: 'Введите access-токен в формате: Bearer <access_token>'

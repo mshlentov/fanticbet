@@ -18,6 +18,9 @@ type OutcomeRepository interface {
 	Upsert(ctx context.Context, o domain.Outcome) (int64, error)
 	// GetByMarket возвращает все исходы рынка (порядок по id).
 	GetByMarket(ctx context.Context, marketID int64) ([]domain.Outcome, error)
+	// GetByMarkets возвращает исходы сразу нескольких рынков одним запросом
+	// (для ленты GET /events — чтобы не делать N+1). Порядок по market_id, id.
+	GetByMarkets(ctx context.Context, marketIDs []int64) ([]domain.Outcome, error)
 	// UpdateOdds обновляет текущий коэффициент исхода. Возвращает domain.ErrNotFound,
 	// если исхода с таким id нет.
 	UpdateOdds(ctx context.Context, id int64, odds decimal.Decimal) error
@@ -81,6 +84,38 @@ func (r *OutcomeRepositoryImpl) GetByMarket(ctx context.Context, marketID int64)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("OutcomeRepository.GetByMarket rows: %w", mapErr(err))
+	}
+	return result, nil
+}
+
+func (r *OutcomeRepositoryImpl) GetByMarkets(ctx context.Context, marketIDs []int64) ([]domain.Outcome, error) {
+	if len(marketIDs) == 0 {
+		return nil, nil
+	}
+	q := QuerierFromCtx(ctx, r.pool)
+
+	const sql = `
+		SELECT id, market_id, code, label, odds, result
+		FROM outcomes
+		WHERE market_id = ANY($1)
+		ORDER BY market_id ASC, id ASC`
+
+	rows, err := q.Query(ctx, sql, marketIDs)
+	if err != nil {
+		return nil, fmt.Errorf("OutcomeRepository.GetByMarkets: %w", mapErr(err))
+	}
+	defer rows.Close()
+
+	var result []domain.Outcome
+	for rows.Next() {
+		var o domain.Outcome
+		if err := rows.Scan(&o.ID, &o.MarketID, &o.Code, &o.Label, &o.Odds, &o.Result); err != nil {
+			return nil, fmt.Errorf("OutcomeRepository.GetByMarkets scan: %w", mapErr(err))
+		}
+		result = append(result, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("OutcomeRepository.GetByMarkets rows: %w", mapErr(err))
 	}
 	return result, nil
 }

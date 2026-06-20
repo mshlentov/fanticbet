@@ -81,6 +81,7 @@ func main() {
 
 	authSvc := service.NewAuthService(txMgr, userRepo, refreshRepo, walletRepo, walletTxRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
 	userSvc := service.NewUserService(userRepo, walletRepo, walletTxRepo)
+	eventSvc := service.NewEventService(eventRepo, marketRepo, outcomeRepo)
 	oauthSvc := service.NewOAuthService(txMgr, userRepo, walletRepo, walletTxRepo, authIdentityRepo, refreshRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
 
 	yandexCfg, vkCfg := handler.NewOAuthConfigs(
@@ -90,6 +91,7 @@ func main() {
 
 	authH := handler.NewAuthHandler(authSvc, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
 	userH := handler.NewUserHandler(userSvc)
+	eventH := handler.NewEventHandler(eventSvc)
 	oauthH := handler.NewOAuthHandler(oauthSvc, yandexCfg, vkCfg, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
 
 	// Setup router
@@ -133,6 +135,11 @@ func main() {
 			auth.GET("/:provider/login", oauthH.Login)
 			auth.GET("/:provider/callback", oauthH.Callback)
 		}
+
+		// Каталог событий (публичный, без авторизации): виды спорта и лента.
+		v1.GET("/sports", eventH.Sports)
+		v1.GET("/events", eventH.List)
+		v1.GET("/events/:id", eventH.Get)
 
 		// Профиль текущего пользователя (за AuthRequired).
 		me := v1.Group("/me", middleware.AuthRequired(jwtMgr))
