@@ -7,6 +7,7 @@ import (
 	"fanticbet/internal/domain"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 )
 
 // MarketRepository — интерфейс работы с таблицей markets (рынки события).
@@ -21,6 +22,10 @@ type MarketRepository interface {
 	// UpdateStatus меняет статус рынка (open/suspended/settled/void).
 	// Возвращает domain.ErrNotFound, если рынка с таким id нет.
 	UpdateStatus(ctx context.Context, id int64, status domain.MarketStatus) error
+	// UpdateLine обновляет линию рынка (для TOTALS — основную линию, выбранную
+	// OddsSyncWorker). line=nil сбрасывает линию в NULL. Возвращает
+	// domain.ErrNotFound, если рынка с таким id нет.
+	UpdateLine(ctx context.Context, id int64, line *decimal.Decimal) error
 }
 
 type MarketRepositoryImpl struct {
@@ -87,6 +92,21 @@ func (r *MarketRepositoryImpl) UpdateStatus(ctx context.Context, id int64, statu
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("MarketRepository.UpdateStatus id=%d: %w", id, domain.ErrNotFound)
+	}
+	return nil
+}
+
+func (r *MarketRepositoryImpl) UpdateLine(ctx context.Context, id int64, line *decimal.Decimal) error {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	const sql = `UPDATE markets SET line = $2 WHERE id = $1`
+
+	tag, err := q.Exec(ctx, sql, id, line)
+	if err != nil {
+		return fmt.Errorf("MarketRepository.UpdateLine id=%d: %w", id, mapErr(err))
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("MarketRepository.UpdateLine id=%d: %w", id, domain.ErrNotFound)
 	}
 	return nil
 }

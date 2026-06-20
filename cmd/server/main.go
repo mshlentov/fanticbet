@@ -14,9 +14,11 @@ import (
 	"fanticbet/internal/config"
 	"fanticbet/internal/handler"
 	"fanticbet/internal/handler/middleware"
+	"fanticbet/internal/oddsapi"
 	"fanticbet/internal/repository"
 	"fanticbet/internal/security"
 	"fanticbet/internal/service"
+	"fanticbet/internal/worker"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -68,6 +70,9 @@ func main() {
 	walletRepo := repository.NewWalletRepository(pool)
 	walletTxRepo := repository.NewWalletTransactionRepository(pool)
 	authIdentityRepo := repository.NewAuthIdentityRepository(pool)
+	eventRepo := repository.NewEventRepository(pool)
+	marketRepo := repository.NewMarketRepository(pool)
+	outcomeRepo := repository.NewOutcomeRepository(pool)
 
 	jwtMgr, err := security.NewJWTManager(cfg.JWTSecret, accessTTL)
 	if err != nil {
@@ -138,6 +143,38 @@ func main() {
 		}
 	}
 
+	// Фоновые воркеры синхронизации с Odds-API. Запускаем только при наличии
+	// ключа: без него все запросы к API вернут 401, смысла крутить воркеры нет.
+	var runner *worker.Runner
+	if cfg.OddsAPIKey == "" {
+		log.Println("ODDS_API_KEY is empty, skipping Odds-API workers")
+	} else {
+		oddsClient := oddsapi.New(cfg.OddsAPIKey)
+		oddsWindow := time.Duration(cfg.OddsSyncWindowHours) * time.Hour
+
+		eventSync := worker.NewEventSyncWorker(eventRepo, marketRepo, oddsClient, cfg.Sports, nil)
+		oddsSync := worker.NewOddsSyncWorker(eventRepo, marketRepo, outcomeRepo, oddsClient, cfg.Bookmaker, oddsWindow, nil)
+
+		runner = worker.NewRunner(nil)
+		if err := runner.Register(worker.Job{
+			Name:     "event-sync",
+			Schedule: cfg.EventSyncSchedule,
+			Timeout:  2 * time.Minute,
+			Run:      eventSync.Run,
+		}); err != nil {
+			log.Fatalf("Failed to register event-sync worker: %v", err)
+		}
+		if err := runner.Register(worker.Job{
+			Name:     "odds-sync",
+			Schedule: cfg.OddsSyncSchedule,
+			Timeout:  2 * time.Minute,
+			Run:      oddsSync.Run,
+		}); err != nil {
+			log.Fatalf("Failed to register odds-sync worker: %v", err)
+		}
+		runner.Start()
+	}
+
 	// HTTP server with graceful shutdown
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.AppPort),
@@ -163,6 +200,12 @@ func main() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	// Останавливаем воркеры: прекращаем планирование и даём текущим итерациям
+	// завершиться (или прерываем их по таймауту).
+	if runner != nil {
+		runner.Stop(10 * time.Second)
 	}
 
 	log.Println("Server exited")
