@@ -66,11 +66,11 @@
 - [x] 🟢 Генерация refresh-токена (32 случайных байта) + sha256-хэш для хранения
 
 ### Сервисы
-- [ ] 🔴 `AuthService.Register` — **в одной транзакции**: создать user → wallet → начислить `signup_bonus` (запись в `wallet_transactions` + баланс)
-- [ ] 🟡 `AuthService.Login`: проверка пароля → выдача access + создание refresh
-- [ ] 🟡 `AuthService.Refresh`: проверка refresh-хэша/срока/ревокации → новый access
-- [ ] 🟢 `AuthService.Logout`: ревокация refresh-токена
-- [ ] 🟢 `UserService.GetMe` (профиль + баланс одним ответом), `UpdateProfile` (display_name, avatar)
+- [x] 🔴 `AuthService.Register` — **в одной транзакции**: создать user → wallet → начислить `signup_bonus` (запись в `wallet_transactions` + баланс)
+- [x] 🟡 `AuthService.Login`: проверка пароля → выдача access + создание refresh
+- [x] 🟡 `AuthService.Refresh`: проверка refresh-хэша/срока/ревокации → новый access
+- [x] 🟢 `AuthService.Logout`: ревокация refresh-токена
+- [x] 🟢 `UserService.GetMe` (профиль + баланс одним ответом), `UpdateProfile` (display_name, avatar)
 
 ### Handlers и middleware
 - [ ] 🟢 `POST /auth/register` (+ валидация email/пароля через validator/v10)

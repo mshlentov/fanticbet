@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"fanticbet/internal/domain"
 
@@ -16,6 +17,10 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id int64) (domain.User, error)
 	GetByEmail(ctx context.Context, email string) (domain.User, error)
 	Update(ctx context.Context, u domain.User) error
+	// TouchLastLogin проставляет last_login_at = at. Вызывается из AuthService.Login
+	// для аудита входов. updated_at обновится триггером автоматически.
+	// Возвращает domain.ErrNotFound, если пользователя с таким id нет.
+	TouchLastLogin(ctx context.Context, id int64, at time.Time) error
 }
 
 // UserRepositoryImpl — реализация поверх pgx. Один пул на инстанс.
@@ -108,6 +113,27 @@ func (r *UserRepositoryImpl) Update(ctx context.Context, u domain.User) error {
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("UserRepository.Update id=%d: %w", u.ID, domain.ErrNotFound)
+	}
+	return nil
+}
+
+// TouchLastLogin проставляет last_login_at. Аудиторная запись, не влияет на
+// бизнес-логику, поэтому в сервисе ошибки логируются, но не валят вход.
+// updated_at обновится триггером trg_users_updated_at автоматически.
+func (r *UserRepositoryImpl) TouchLastLogin(ctx context.Context, id int64, at time.Time) error {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	const sql = `
+		UPDATE users
+		SET last_login_at = $2
+		WHERE id = $1`
+
+	tag, err := q.Exec(ctx, sql, id, at)
+	if err != nil {
+		return fmt.Errorf("UserRepository.TouchLastLogin id=%d: %w", id, mapErr(err))
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("UserRepository.TouchLastLogin id=%d: %w", id, domain.ErrNotFound)
 	}
 	return nil
 }
