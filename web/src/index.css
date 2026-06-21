@@ -1,0 +1,644 @@
+/* ============================================================
+   FanticBet — дизайн-система (перенос макета docs/fanticbet-design).
+   Токены в CSS-переменных, светлая/тёмная тема через data-theme.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  color-scheme: light;
+  --bg: #f3f4f8;
+  --surface: #ffffff;
+  --surface2: #eef0f5;
+  --text: #171821;
+  --text2: #646a7a;
+  --text3: #9aa0af;
+  --border: #e5e7ee;
+  --accent: #6553df;
+  --accent2: #5444c6;
+  --accent-soft: #edebfb;
+  --green: #178f5c;
+  --green-soft: #e2f4eb;
+  --red: #d6494f;
+  --red-soft: #fbe9ea;
+  --amber: #b97b14;
+  --amber-soft: #fcf2dd;
+  --gold: #e2a224;
+  --shadow: 0 1px 2px rgba(23, 24, 40, 0.04), 0 8px 24px rgba(23, 24, 40, 0.05);
+  --shadow-lg: 0 4px 12px rgba(23, 24, 40, 0.08), 0 24px 64px rgba(23, 24, 40, 0.16);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #101117;
+  --surface: #181a22;
+  --surface2: #22242f;
+  --text: #eef0f6;
+  --text2: #9aa1b5;
+  --text3: #636b80;
+  --border: #272a37;
+  --accent: #8474ec;
+  --accent2: #978af2;
+  --accent-soft: rgba(132, 116, 236, 0.15);
+  --green: #36c188;
+  --green-soft: rgba(54, 193, 136, 0.13);
+  --red: #ee6b72;
+  --red-soft: rgba(238, 107, 114, 0.13);
+  --amber: #e6a73c;
+  --amber-soft: rgba(230, 167, 60, 0.13);
+  --gold: #ecb43c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.3), 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", -apple-system, "Segoe UI", sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+input,
+button,
+select,
+textarea {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes livePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ---------- Каркас страницы ---------- */
+.fb-page {
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+.fb-main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 22px 20px 0;
+}
+.fb-anim {
+  animation: fadeUp 0.3s ease both;
+}
+
+/* ---------- Шапка ---------- */
+.fb-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.25s ease;
+}
+.fb-header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.fb-logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.fb-logo .accent {
+  color: var(--accent);
+}
+.fb-nav {
+  display: flex;
+  gap: 4px;
+  margin-left: 6px;
+}
+.fb-nav-btn {
+  padding: 7px 13px;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text2);
+  transition: all 0.15s;
+}
+.fb-nav-btn:hover {
+  color: var(--text);
+}
+.fb-nav-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.fb-balance {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 13px 6px 8px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.fb-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text2);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s;
+}
+.fb-icon-btn:hover {
+  color: var(--text);
+  border-color: var(--text3);
+}
+.fb-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+/* ---------- Кнопки ---------- */
+.fb-btn {
+  padding: 13px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 14.5px;
+  font-weight: 800;
+  background: var(--accent);
+  color: #fff;
+  transition: background 0.15s, transform 0.1s;
+}
+.fb-btn:hover {
+  background: var(--accent2);
+}
+.fb-btn:active {
+  transform: scale(0.98);
+}
+.fb-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.fb-btn-outline {
+  padding: 8px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.fb-btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- Чипы фильтров ---------- */
+.fb-chip {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text2);
+  transition: all 0.15s;
+}
+.fb-chip:hover {
+  border-color: var(--accent);
+}
+.fb-chip.is-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.fb-chip-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin: 0 6px;
+}
+
+/* Сегмент-переключатель (вкладки / метрики) */
+.fb-segment {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--surface2);
+  border-radius: 13px;
+  padding: 4px;
+  max-width: 100%;
+  overflow: auto;
+}
+.fb-segment-btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  background: transparent;
+  color: var(--text2);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.fb-segment-btn.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+/* ---------- Карточки ---------- */
+.fb-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.fb-events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(295px, 1fr));
+  gap: 14px;
+}
+.fb-event-card {
+  border-radius: 16px;
+  padding: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.fb-event-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Бейджи статусов событий */
+.fb-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+}
+.fb-badge-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--red-soft);
+  color: var(--red);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.fb-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: livePulse 1.4s ease infinite;
+}
+.fb-badge-settled {
+  background: var(--surface2);
+  color: var(--text3);
+}
+.fb-badge-upcoming {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ---------- Исходы (кнопки коэффициентов) ---------- */
+.fb-outcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  min-width: 0;
+}
+.fb-outcome:hover {
+  border-color: var(--accent);
+}
+.fb-outcome:active {
+  transform: scale(0.96);
+}
+.fb-outcome.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.fb-outcome.is-closed {
+  color: var(--text3);
+  cursor: default;
+}
+.fb-outcome .label {
+  font-size: 10.5px;
+  font-weight: 600;
+  opacity: 0.78;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fb-outcome .odds {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Вариант исхода на странице события (в строку) */
+.fb-outcome-row {
+  flex: 1;
+  min-width: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.fb-outcome-row:hover {
+  border-color: var(--accent);
+}
+.fb-outcome-row:active {
+  transform: scale(0.97);
+}
+.fb-outcome-row.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.fb-outcome-row.is-closed {
+  color: var(--text3);
+  cursor: default;
+}
+
+/* ---------- Статы / поля ---------- */
+.fb-stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 11px 14px;
+}
+.fb-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  margin-bottom: 3px;
+}
+.fb-stat-value {
+  font-size: 19px;
+  font-weight: 800;
+}
+.fb-input {
+  padding: 12px 14px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.fb-input:focus {
+  border-color: var(--accent);
+}
+.fb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+/* ---------- Бет-слип ---------- */
+.fb-betslip {
+  position: fixed;
+  top: 76px;
+  right: 16px;
+  bottom: 16px;
+  width: 346px;
+  z-index: 50;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: fadeUp 0.25s ease both;
+}
+.fb-slip-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 20px;
+  z-index: 45;
+}
+.fb-slip-fab button {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(101, 83, 223, 0.45);
+  display: grid;
+  place-items: center;
+  position: relative;
+  transition: background 0.15s, transform 0.12s;
+}
+.fb-slip-fab button:hover {
+  background: var(--accent2);
+  transform: translateY(-2px);
+}
+.fb-slip-fab .count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 21px;
+  height: 21px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border: 2px solid var(--bg);
+}
+
+/* ---------- Тосты ---------- */
+.fb-toasts {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+.fb-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 16px;
+  box-shadow: var(--shadow-lg);
+  min-width: 230px;
+  max-width: 340px;
+  animation: toastIn 0.25s ease both;
+}
+.fb-toast-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.fb-toast-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* ---------- Мобильная навигация ---------- */
+.fb-mobile-nav {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
+  justify-content: space-around;
+}
+.fb-mobile-nav button {
+  flex: 1;
+  padding: 9px 4px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  background: none;
+  color: var(--text3);
+}
+.fb-mobile-nav button.is-active {
+  color: var(--accent);
+}
+
+/* ---------- Адаптив ---------- */
+@media (max-width: 780px) {
+  .fb-betslip {
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    width: auto !important;
+    max-height: 74vh !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+  .fb-nav {
+    display: none;
+  }
+  .fb-mobile-nav {
+    display: flex;
+  }
+  .fb-slip-fab {
+    bottom: 78px;
+  }
+  .fb-page {
+    padding-bottom: 96px;
+  }
+}
+@media (max-width: 560px) {
+  .fb-lb-extra {
+    display: none !important;
+  }
+}

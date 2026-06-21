@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f3f4f8; --surface:#ffffff; --surface2:#eef0f5; --text:#171821; --text2:#646a7a; --text3:#9aa0af;
+  --border:#e5e7ee; --accent:#6553df; --accent2:#5444c6; --accent-soft:#edebfb;
+  --green:#178f5c; --green-soft:#e2f4eb; --red:#d6494f; --red-soft:#fbe9ea;
+  --amber:#b97b14; --amber-soft:#fcf2dd; --gold:#e2a224;
+  --shadow:0 1px 2px rgba(23,24,40,.04), 0 8px 24px rgba(23,24,40,.05);
+  --shadow-lg:0 4px 12px rgba(23,24,40,.08), 0 24px 64px rgba(23,24,40,.16);
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#101117; --surface:#181a22; --surface2:#22242f; --text:#eef0f6; --text2:#9aa1b5; --text3:#636b80;
+  --border:#272a37; --accent:#8474ec; --accent2:#978af2; --accent-soft:rgba(132,116,236,.15);
+  --green:#36c188; --green-soft:rgba(54,193,136,.13); --red:#ee6b72; --red-soft:rgba(238,107,114,.13);
+  --amber:#e6a73c; --amber-soft:rgba(230,167,60,.13); --gold:#ecb43c;
+  --shadow:0 1px 2px rgba(0,0,0,.2), 0 8px 24px rgba(0,0,0,.25);
+  --shadow-lg:0 4px 12px rgba(0,0,0,.3), 0 24px 64px rgba(0,0,0,.5);
+}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,'Segoe UI',sans-serif;transition:background-color .25s ease,color .25s ease;}
+*{box-sizing:border-box;}
+input,button,select,textarea{font-family:inherit;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px) scale(.97);}to{opacity:1;transform:none;}}
+@keyframes livePulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+@media (max-width:780px){
+  [data-betslip]{left:0 !important;right:0 !important;top:auto !important;bottom:0 !important;width:auto !important;max-height:74vh !important;border-radius:20px 20px 0 0 !important;}
+  [data-nav-links]{display:none !important;}
+  [data-mobile-nav]{display:flex !important;}
+  [data-slip-fab]{bottom:78px !important;}
+  [data-page-pad]{padding-bottom:96px !important;}
+}
+@media (max-width:560px){
+  [data-lb-extra]{display:none !important;}
+  [data-hero-stats]{grid-template-columns:repeat(3,1fr) !important;}
+}
+</style>
+</helmet>
+
+<div data-page-pad style="min-height:100vh;padding-bottom:40px;">
+
+  <!-- ===================== HEADER ===================== -->
+  <header data-screen-label="Шапка" style="position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--border);transition:background-color .25s ease;">
+    <div style="max-width:1280px;margin:0 auto;padding:0 20px;height:62px;display:flex;align-items:center;gap:14px;">
+      <button onClick="{{ goHome }}" style="display:flex;align-items:center;gap:9px;background:none;border:none;padding:0;cursor:pointer;color:var(--text);">
+        <svg width="27" height="27" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="var(--gold)"></circle><circle cx="12" cy="12" r="8" fill="none" stroke="rgba(80,46,0,0.35)" stroke-width="1.5"></circle><text x="12" y="16.2" text-anchor="middle" font-size="11" font-weight="800" fill="rgba(80,46,0,0.8)" font-family="Inter, sans-serif">Ф</text></svg>
+        <span style="font-size:18px;font-weight:800;letter-spacing:-0.02em;">Fantic<span style="color:var(--accent);">Bet</span></span>
+      </button>
+      <nav data-nav-links style="display:flex;gap:4px;margin-left:6px;">
+        <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4">
+          <button onClick="{{ n.onClick }}" style="padding:7px 13px;border-radius:9px;border:none;cursor:pointer;font-size:13.5px;font-weight:600;background:{{ n.bg }};color:{{ n.color }};transition:all .15s;" style-hover="color:var(--text);">{{ n.label }}</button>
+        </sc-for>
+      </nav>
+      <div style="flex:1;"></div>
+      <div title="Баланс фантиков" style="display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:6px 13px 6px 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="var(--gold)"></circle><circle cx="12" cy="12" r="8" fill="none" stroke="rgba(80,46,0,0.35)" stroke-width="1.5"></circle><text x="12" y="16.2" text-anchor="middle" font-size="11" font-weight="800" fill="rgba(80,46,0,0.8)" font-family="Inter, sans-serif">Ф</text></svg>
+        <span style="font-size:14px;font-weight:800;letter-spacing:-0.01em;">{{ balanceFmt }}</span>
+      </div>
+      <button onClick="{{ toggleTheme }}" title="Переключить тему" style="width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;display:grid;place-items:center;transition:all .15s;" style-hover="color:var(--text);border-color:var(--text3);">
+        <sc-if value="{{ isDark }}" hint-placeholder-val="{{ false }}">
+          <svg width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M19.5 4.5l-2.1 2.1M6.6 17.4l-2.1 2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+        </sc-if>
+        <sc-if value="{{ isLight }}" hint-placeholder-val="{{ true }}">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="currentColor"></path></svg>
+        </sc-if>
+      </button>
+      <button onClick="{{ openLogin }}" style="padding:8px 15px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:13.5px;font-weight:600;cursor:pointer;transition:all .15s;" style-hover="border-color:var(--accent);color:var(--accent);">Войти</button>
+      <button onClick="{{ goBets }}" title="Александр" style="width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;background:var(--accent);color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center;">АЛ</button>
+    </div>
+  </header>
+
+  <main style="max-width:1280px;margin:0 auto;padding:22px 20px 0;">
+
+    <!-- ===================== ГЛАВНАЯ ЛЕНТА ===================== -->
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <section data-screen-label="Главная лента событий">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:16px;">
+          <h1 style="margin:0;font-size:21px;font-weight:800;letter-spacing:-0.02em;">Лента событий</h1>
+          <span style="font-size:13px;color:var(--text3);font-weight:500;">{{ eventsCountLabel }}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:18px;">
+          <sc-for list="{{ sportChips }}" as="c" hint-placeholder-count="4">
+            <button onClick="{{ c.onClick }}" style="padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.color }};transition:all .15s;" style-hover="border-color:var(--accent);">{{ c.label }}</button>
+          </sc-for>
+          <span style="width:1px;height:22px;background:var(--border);margin:0 6px;"></span>
+          <sc-for list="{{ statusChips }}" as="c" hint-placeholder-count="4">
+            <button onClick="{{ c.onClick }}" style="padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.color }};transition:all .15s;" style-hover="border-color:var(--accent);">{{ c.label }}</button>
+          </sc-for>
+        </div>
+        <div data-events-grid style="display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:14px;">
+          <sc-for list="{{ events }}" as="ev" hint-placeholder-count="6">
+            <div onClick="{{ ev.onOpen }}" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px;cursor:pointer;box-shadow:var(--shadow);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;display:flex;flex-direction:column;gap:11px;animation:fadeUp .3s ease both;" style-hover="transform:translateY(-2px);border-color:var(--accent);box-shadow:var(--shadow-lg);">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="width:26px;height:26px;border-radius:8px;background:var(--surface2);display:grid;place-items:center;color:var(--text2);flex-shrink:0;">
+                  <sc-if value="{{ ev.isFootball }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><polygon points="12,8.2 15.6,10.8 14.2,15.2 9.8,15.2 8.4,10.8" fill="currentColor" stroke="none"></polygon></svg></sc-if>
+                  <sc-if value="{{ ev.isBasketball }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3v18M5.7 5.7c3.4 3.5 3.4 9.1 0 12.6M18.3 5.7c-3.4 3.5-3.4 9.1 0 12.6"></path></svg></sc-if>
+                  <sc-if value="{{ ev.isCustom }}"><svg width="14" height="14" viewBox="0 0 24 24"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z" fill="currentColor"></path></svg></sc-if>
+                </span>
+                <span style="font-size:12px;font-weight:600;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">{{ ev.league }}</span>
+                <sc-if value="{{ ev.isLive }}">
+                  <span style="display:flex;align-items:center;gap:5px;background:var(--red-soft);color:var(--red);font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;letter-spacing:.04em;"><span style="width:6px;height:6px;border-radius:50%;background:var(--red);animation:livePulse 1.4s ease infinite;"></span>LIVE</span>
+                </sc-if>
+                <sc-if value="{{ ev.isSettled }}">
+                  <span style="background:var(--surface2);color:var(--text3);font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;">Завершено</span>
+                </sc-if>
+                <sc-if value="{{ ev.isUpcoming }}">
+                  <span style="text-align:right;line-height:1.25;flex-shrink:0;">
+                    <span style="display:block;font-size:12px;font-weight:700;color:var(--accent);">{{ ev.timeRel }}</span>
+                    <span style="display:block;font-size:11px;color:var(--text3);">{{ ev.timeAbs }}</span>
+                  </span>
+                </sc-if>
+              </div>
+              <sc-if value="{{ ev.isMatch }}">
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:15px;font-weight:700;letter-spacing:-0.01em;">{{ ev.home }}</span><sc-if value="{{ ev.hasScore }}"><span style="font-size:15px;font-weight:800;color:var(--accent);">{{ ev.scoreHome }}</span></sc-if></div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:15px;font-weight:700;letter-spacing:-0.01em;">{{ ev.away }}</span><sc-if value="{{ ev.hasScore }}"><span style="font-size:15px;font-weight:800;color:var(--accent);">{{ ev.scoreAway }}</span></sc-if></div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ ev.isCustom }}">
+                <div style="font-size:14.5px;font-weight:700;line-height:1.4;min-height:40px;text-wrap:pretty;">{{ ev.title }}</div>
+              </sc-if>
+              <div style="display:flex;flex-direction:column;gap:9px;margin-top:auto;">
+                <sc-for list="{{ ev.markets }}" as="m">
+                  <div style="display:flex;flex-direction:column;gap:5px;">
+                    <span style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">{{ m.title }}</span>
+                    <div style="display:flex;gap:6px;">
+                      <sc-for list="{{ m.outcomes }}" as="o">
+                        <button onClick="{{ o.onClick }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 4px;border-radius:10px;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};cursor:pointer;transition:all .12s ease;min-width:0;" style-hover="border-color:var(--accent);" style-active="transform:scale(0.96);">
+                          <span style="font-size:10.5px;font-weight:600;opacity:.78;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ o.label }}</span>
+                          <span style="font-size:15px;font-weight:800;letter-spacing:-0.01em;">{{ o.odds }}</span>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+
+    <!-- ===================== ДЕТАЛИ СОБЫТИЯ ===================== -->
+    <sc-if value="{{ isEvent }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Страница события" style="max-width:760px;margin:0 auto;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:13px;color:var(--text3);">
+          <button onClick="{{ goHome }}" style="background:none;border:none;padding:0;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);" style-hover="color:var(--accent);">← Лента событий</button>
+          <span>/</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ evd.title }}</span>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px;box-shadow:var(--shadow);margin-bottom:16px;animation:fadeUp .3s ease both;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <span style="font-size:12.5px;font-weight:600;color:var(--text2);flex:1;">{{ evd.league }}</span>
+            <sc-if value="{{ evd.isLive }}"><span style="display:flex;align-items:center;gap:5px;background:var(--red-soft);color:var(--red);font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--red);animation:livePulse 1.4s ease infinite;"></span>LIVE</span></sc-if>
+            <sc-if value="{{ evd.isSettled }}"><span style="background:var(--surface2);color:var(--text3);font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;">Завершено</span></sc-if>
+            <sc-if value="{{ evd.isUpcoming }}"><span style="background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;">{{ evd.timeRel }}</span></sc-if>
+          </div>
+          <sc-if value="{{ evd.isMatch }}">
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;">
+              <div style="text-align:right;font-size:19px;font-weight:800;letter-spacing:-0.02em;text-wrap:balance;">{{ evd.home }}</div>
+              <div style="text-align:center;">
+                <div style="font-size:27px;font-weight:800;letter-spacing:-0.02em;color:var(--accent);">{{ evd.centerText }}</div>
+              </div>
+              <div style="font-size:19px;font-weight:800;letter-spacing:-0.02em;text-wrap:balance;">{{ evd.away }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ evd.isCustom }}">
+            <div style="font-size:20px;font-weight:800;letter-spacing:-0.02em;line-height:1.35;text-wrap:balance;">{{ evd.title }}</div>
+          </sc-if>
+          <div style="text-align:center;margin-top:14px;font-size:12.5px;color:var(--text3);font-weight:500;">{{ evd.timeAbs }}</div>
+        </div>
+
+        <sc-for list="{{ evd.markets }}" as="m">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow);margin-bottom:12px;animation:fadeUp .3s ease both;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:11px;color:var(--text2);">{{ m.title }}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <sc-for list="{{ m.outcomes }}" as="o">
+                <button onClick="{{ o.onClick }}" style="flex:1;min-width:130px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};cursor:pointer;transition:all .12s ease;" style-hover="border-color:var(--accent);" style-active="transform:scale(0.97);">
+                  <span style="font-size:13.5px;font-weight:600;text-align:left;">{{ o.label }}</span>
+                  <span style="font-size:17px;font-weight:800;">{{ o.odds }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow);animation:fadeUp .3s ease both;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:11px;color:var(--text2);">Мои ставки на это событие</div>
+          <sc-if value="{{ evd.noMyBets }}">
+            <div style="font-size:13.5px;color:var(--text3);">Вы ещё не делали ставок на это событие.</div>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <sc-for list="{{ evd.myBets }}" as="b">
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--border);border-radius:12px;background:var(--bg);">
+                <span style="font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:{{ b.stBg }};color:{{ b.stColor }};flex-shrink:0;">{{ b.stLabel }}</span>
+                <span style="flex:1;font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.outcomeLabel }} <span style="color:var(--text3);font-weight:500;">· кф {{ b.odds }}</span></span>
+                <span style="font-size:13px;font-weight:700;color:{{ b.resColor }};white-space:nowrap;">{{ b.resLine }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <!-- ===================== МОИ СТАВКИ ===================== -->
+    <sc-if value="{{ isBets }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Мои ставки и кошелёк" style="max-width:860px;margin:0 auto;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;box-shadow:var(--shadow);margin-bottom:18px;display:flex;flex-wrap:wrap;align-items:center;gap:24px;animation:fadeUp .3s ease both;">
+          <div style="flex:1;min-width:200px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Баланс</div>
+            <div style="display:flex;align-items:center;gap:11px;">
+              <svg width="34" height="34" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="var(--gold)"></circle><circle cx="12" cy="12" r="8" fill="none" stroke="rgba(80,46,0,0.35)" stroke-width="1.5"></circle><text x="12" y="16.2" text-anchor="middle" font-size="11" font-weight="800" fill="rgba(80,46,0,0.8)" font-family="Inter, sans-serif">Ф</text></svg>
+              <span style="font-size:34px;font-weight:800;letter-spacing:-0.03em;">{{ balanceFmt }}</span>
+              <span style="font-size:14px;color:var(--text3);font-weight:600;align-self:flex-end;padding-bottom:5px;">фантиков</span>
+            </div>
+          </div>
+          <div data-hero-stats style="display:grid;grid-template-columns:repeat(3,minmax(86px,1fr));gap:10px;">
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:13px;padding:11px 14px;">
+              <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">Винрейт</div>
+              <div style="font-size:19px;font-weight:800;">{{ stats.winRate }}</div>
+            </div>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:13px;padding:11px 14px;">
+              <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">Прибыль</div>
+              <div style="font-size:19px;font-weight:800;color:{{ stats.profitColor }};">{{ stats.profit }}</div>
+            </div>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:13px;padding:11px 14px;">
+              <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">ROI</div>
+              <div style="font-size:19px;font-weight:800;color:{{ stats.profitColor }};">{{ stats.roi }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:inline-flex;gap:4px;background:var(--surface2);border-radius:13px;padding:4px;margin-bottom:16px;max-width:100%;overflow:auto;">
+          <sc-for list="{{ betTabs }}" as="t" hint-placeholder-count="3">
+            <button onClick="{{ t.onClick }}" style="padding:8px 16px;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:{{ t.bg }};color:{{ t.color }};box-shadow:{{ t.shadow }};transition:all .15s;white-space:nowrap;">{{ t.label }}</button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ showBetRows }}">
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            <sc-if value="{{ betsEmpty }}">
+              <div style="text-align:center;padding:40px 20px;color:var(--text3);font-size:14px;background:var(--surface);border:1px dashed var(--border);border-radius:16px;">Здесь пока пусто</div>
+            </sc-if>
+            <sc-for list="{{ betRows }}" as="b" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 16px;box-shadow:var(--shadow);animation:fadeUp .25s ease both;">
+                <span style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;background:{{ b.stBg }};color:{{ b.stColor }};flex-shrink:0;">{{ b.stLabel }}</span>
+                <div style="flex:1;min-width:170px;">
+                  <div style="font-size:14px;font-weight:700;letter-spacing:-0.01em;">{{ b.eventTitle }}</div>
+                  <div style="font-size:12.5px;color:var(--text2);margin-top:2px;">{{ b.outcomeLabel }} <span style="color:var(--text3);">· {{ b.marketLabel }} · кф {{ b.odds }}</span></div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:13.5px;font-weight:800;color:{{ b.resColor }};">{{ b.resLine }}</div>
+                  <div style="font-size:11.5px;color:var(--text3);margin-top:2px;">Ставка {{ b.stake }} · {{ b.date }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showTxRows }}">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;">
+            <sc-for list="{{ txRows }}" as="t" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--border);">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.label }}</div>
+                  <div style="font-size:11.5px;color:var(--text3);margin-top:2px;">{{ t.date }}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:14px;font-weight:800;color:{{ t.color }};">{{ t.amount }}</div>
+                  <div style="font-size:11.5px;color:var(--text3);margin-top:2px;">Баланс: {{ t.after }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </section>
+    </sc-if>
+
+    <!-- ===================== ЛИДЕРБОРД ===================== -->
+    <sc-if value="{{ isLb }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Лидерборд" style="max-width:760px;margin:0 auto;">
+        <h1 style="margin:0 0 16px;font-size:21px;font-weight:800;letter-spacing:-0.02em;">Лидерборд</h1>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <sc-for list="{{ lbPeriodChips }}" as="c" hint-placeholder-count="3">
+              <button onClick="{{ c.onClick }}" style="padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.color }};transition:all .15s;" style-hover="border-color:var(--accent);">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display:inline-flex;gap:4px;background:var(--surface2);border-radius:12px;padding:4px;">
+            <sc-for list="{{ lbMetricChips }}" as="t" hint-placeholder-count="2">
+              <button onClick="{{ t.onClick }}" style="padding:7px 14px;border-radius:9px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:{{ t.bg }};color:{{ t.color }};box-shadow:{{ t.shadow }};transition:all .15s;">{{ t.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;animation:fadeUp .3s ease both;">
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">
+            <span style="width:32px;">#</span>
+            <span style="flex:1;">Игрок</span>
+            <span style="width:90px;text-align:right;">{{ lbValueHeader }}</span>
+            <span data-lb-extra style="width:64px;text-align:right;">Ставок</span>
+            <span data-lb-extra style="width:64px;text-align:right;">Побед</span>
+          </div>
+          <sc-for list="{{ lbRows }}" as="r" hint-placeholder-count="8">
+            <div onClick="{{ r.onOpen }}" style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--border);cursor:pointer;background:{{ r.rowBg }};transition:background .12s;" style-hover="background:var(--surface2);">
+              <span style="width:32px;flex-shrink:0;">
+                <span style="display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:800;background:{{ r.rankBg }};color:{{ r.rankColor }};">{{ r.rank }}</span>
+              </span>
+              <span style="flex:1;display:flex;align-items:center;gap:10px;min-width:0;">
+                <span style="width:30px;height:30px;border-radius:50%;background:{{ r.avatarBg }};color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex-shrink:0;">{{ r.initials }}</span>
+                <span style="font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.name }}</span>
+              </span>
+              <span style="width:90px;text-align:right;font-size:14px;font-weight:800;color:{{ r.valueColor }};">{{ r.value }}</span>
+              <span data-lb-extra style="width:64px;text-align:right;font-size:13px;color:var(--text2);font-weight:600;">{{ r.bets }}</span>
+              <span data-lb-extra style="width:64px;text-align:right;font-size:13px;color:var(--text2);font-weight:600;">{{ r.winRate }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+
+    <!-- ===================== ПРОФИЛЬ ===================== -->
+    <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Публичный профиль" style="max-width:720px;margin:0 auto;">
+        <button onClick="{{ goLb }}" style="background:none;border:none;padding:0;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:14px;" style-hover="color:var(--accent);">← Лидерборд</button>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;box-shadow:var(--shadow);margin-bottom:16px;animation:fadeUp .3s ease both;">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+            <span style="width:58px;height:58px;border-radius:50%;background:{{ pf.avatarBg }};color:#fff;font-size:20px;font-weight:800;display:grid;place-items:center;flex-shrink:0;">{{ pf.initials }}</span>
+            <div>
+              <div style="font-size:21px;font-weight:800;letter-spacing:-0.02em;">{{ pf.name }}</div>
+              <div style="font-size:13px;color:var(--text3);font-weight:500;margin-top:2px;">В игре с {{ pf.joined }}</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;">
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:13px;padding:12px 14px;"><div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">Ставок</div><div style="font-size:18px;font-weight:800;">{{ pf.bets }}</div></div>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:13px;padding:12px 14px;"><div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">Винрейт</div><div style="font-size:18px;font-weight:800;">{{ pf.winRate }}</div></div>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:13px;padding:12px 14px;"><div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">Прибыль</div><div style="font-size:18px;font-weight:800;color:{{ pf.profitColor }};">{{ pf.profit }}</div></div>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:13px;padding:12px 14px;"><div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">ROI</div><div style="font-size:18px;font-weight:800;color:{{ pf.profitColor }};">{{ pf.roi }}</div></div>
+          </div>
+        </div>
+        <div style="font-size:14px;font-weight:800;margin-bottom:10px;">Последние ставки</div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ pf.recentBets }}" as="b" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 16px;box-shadow:var(--shadow);">
+              <span style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;background:{{ b.stBg }};color:{{ b.stColor }};flex-shrink:0;">{{ b.stLabel }}</span>
+              <div style="flex:1;min-width:170px;">
+                <div style="font-size:14px;font-weight:700;">{{ b.eventTitle }}</div>
+                <div style="font-size:12.5px;color:var(--text2);margin-top:2px;">{{ b.outcomeLabel }} <span style="color:var(--text3);">· {{ b.marketLabel }} · кф {{ b.odds }}</span></div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:13.5px;font-weight:800;color:{{ b.resColor }};">{{ b.resLine }}</div>
+                <div style="font-size:11.5px;color:var(--text3);margin-top:2px;">Ставка {{ b.stake }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+
+    <!-- ===================== АДМИН ===================== -->
+    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Админ-панель">
+        <h1 style="margin:0 0 4px;font-size:21px;font-weight:800;letter-spacing:-0.02em;">Админ-панель</h1>
+        <p style="margin:0 0 18px;font-size:13px;color:var(--text3);">Кастомные события · демо-режим, действия не сохраняются</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow);animation:fadeUp .3s ease both;">
+            <div style="font-size:14px;font-weight:800;margin-bottom:13px;">Кастомные события</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <sc-for list="{{ adminEvents }}" as="e" hint-placeholder-count="3">
+                <div style="border:1px solid var(--border);border-radius:13px;padding:13px 14px;background:var(--bg);display:flex;flex-direction:column;gap:9px;">
+                  <div style="font-size:13.5px;font-weight:700;line-height:1.4;">{{ e.title }}</div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="font-size:12px;color:var(--text3);font-weight:500;flex:1;">{{ e.date }}</span>
+                    <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:{{ e.stBg }};color:{{ e.stColor }};">{{ e.stLabel }}</span>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <button onClick="{{ e.onSettle }}" style="flex:1;padding:8px 10px;border-radius:9px;border:none;cursor:pointer;font-size:12.5px;font-weight:700;background:var(--green-soft);color:var(--green);transition:filter .15s;" style-hover="filter:brightness(0.95);">Завершить</button>
+                    <button onClick="{{ e.onCancel }}" style="flex:1;padding:8px 10px;border-radius:9px;border:none;cursor:pointer;font-size:12.5px;font-weight:700;background:var(--red-soft);color:var(--red);transition:filter .15s;" style-hover="filter:brightness(0.95);">Отменить</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow);animation:fadeUp .3s ease both;">
+            <div style="font-size:14px;font-weight:800;margin-bottom:13px;">Новое кастомное событие</div>
+            <div style="display:flex;flex-direction:column;gap:11px;">
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--text2);">Название события
+                <input type="text" placeholder="Например: Финал «Что? Где? Когда?»" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13.5px;outline:none;" style-focus="border-color:var(--accent);">
+              </label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--text2);">Дата и время начала
+                <input type="datetime-local" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13.5px;outline:none;" style-focus="border-color:var(--accent);">
+              </label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--text2);">Вопрос рынка
+                <input type="text" placeholder="Например: Кто победит?" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13.5px;outline:none;" style-focus="border-color:var(--accent);">
+              </label>
+              <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--text2);">Варианты исходов и коэффициенты
+                <div style="display:flex;gap:8px;"><input type="text" placeholder="Исход 1" style="flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13.5px;outline:none;" style-focus="border-color:var(--accent);"><input type="number" placeholder="1.85" step="0.01" style="width:86px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13.5px;font-weight:700;outline:none;" style-focus="border-color:var(--accent);"></div>
+                <div style="display:flex;gap:8px;"><input type="text" placeholder="Исход 2" style="flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13.5px;outline:none;" style-focus="border-color:var(--accent);"><input type="number" placeholder="1.95" step="0.01" style="width:86px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13.5px;font-weight:700;outline:none;" style-focus="border-color:var(--accent);"></div>
+                <div style="display:flex;gap:8px;"><input type="text" placeholder="Исход 3 (опционально)" style="flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13.5px;outline:none;" style-focus="border-color:var(--accent);"><input type="number" placeholder="3.20" step="0.01" style="width:86px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13.5px;font-weight:700;outline:none;" style-focus="border-color:var(--accent);"></div>
+              </div>
+              <button onClick="{{ adminCreate }}" style="margin-top:4px;padding:12px;border-radius:11px;border:none;cursor:pointer;font-size:14px;font-weight:700;background:var(--accent);color:#fff;transition:background .15s;" style-hover="background:var(--accent2);">Создать событие</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+  </main>
+
+  <!-- ===================== КУПОН СТАВОК ===================== -->
+  <sc-if value="{{ slipOpen }}" hint-placeholder-val="{{ false }}">
+    <div data-betslip data-screen-label="Купон ставок" style="position:fixed;top:76px;right:16px;bottom:16px;width:346px;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden;animation:fadeUp .25s ease both;">
+      <div style="display:flex;align-items:center;gap:9px;padding:14px 16px;border-bottom:1px solid var(--border);">
+        <span style="font-size:15px;font-weight:800;">Купон ставок</span>
+        <span style="background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;padding:2px 9px;border-radius:999px;">{{ slipCount }}</span>
+        <div style="flex:1;"></div>
+        <sc-if value="{{ hasSlip }}"><button onClick="{{ clearSlip }}" style="background:none;border:none;padding:0;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--text3);" style-hover="color:var(--red);">Очистить</button></sc-if>
+        <button onClick="{{ closeSlip }}" style="width:28px;height:28px;border-radius:8px;border:none;background:var(--surface2);color:var(--text2);cursor:pointer;font-size:15px;line-height:1;display:grid;place-items:center;" style-hover="color:var(--text);">×</button>
+      </div>
+      <div style="flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;">
+        <sc-if value="{{ slipEmpty }}">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;">
+            <svg width="44" height="44" viewBox="0 0 24 24" style="opacity:.3;"><circle cx="12" cy="12" r="11" fill="var(--gold)"></circle><circle cx="12" cy="12" r="8" fill="none" stroke="rgba(80,46,0,0.35)" stroke-width="1.5"></circle><text x="12" y="16.2" text-anchor="middle" font-size="11" font-weight="800" fill="rgba(80,46,0,0.8)" font-family="Inter, sans-serif">Ф</text></svg>
+            <div style="font-size:14px;font-weight:700;color:var(--text2);">Купон пуст</div>
+            <div style="font-size:12.5px;color:var(--text3);max-width:220px;">Нажмите на коэффициент в любом событии, чтобы добавить ставку</div>
+          </div>
+        </sc-if>
+        <sc-for list="{{ slipItems }}" as="s">
+          <div style="border:1px solid var(--border);border-radius:13px;padding:11px 12px;display:flex;flex-direction:column;gap:9px;background:var(--bg);animation:fadeUp .2s ease both;">
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13.5px;font-weight:700;">{{ s.outcomeLabel }}</div>
+                <div style="font-size:11.5px;color:var(--text3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.eventTitle }} · {{ s.marketLabel }}</div>
+              </div>
+              <button onClick="{{ s.onRemove }}" title="Удалить" style="width:24px;height:24px;border-radius:7px;border:none;background:var(--surface2);color:var(--text3);cursor:pointer;font-size:14px;line-height:1;display:grid;place-items:center;flex-shrink:0;" style-hover="color:var(--red);background:var(--red-soft);">×</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="padding:5px 10px;border-radius:8px;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:13.5px;flex-shrink:0;">{{ s.odds }}</span>
+              <input type="number" value="{{ s.stake }}" onChange="{{ s.onStake }}" min="10" max="10000" style="flex:1;min-width:0;width:60px;padding:8px 11px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-weight:700;outline:none;" style-focus="border-color:var(--accent);">
+              <span style="font-size:12px;color:var(--text2);white-space:nowrap;">→ <span style="font-weight:800;color:var(--text);">{{ s.potential }}</span></span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ hasSlip }}">
+        <div style="border-top:1px solid var(--border);padding:14px 16px;display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);font-weight:600;"><span>Сумма ставок</span><span style="color:var(--text);font-weight:800;">{{ slipTotal }}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);font-weight:600;"><span>Потенциальный выигрыш</span><span style="color:var(--green);font-weight:800;">{{ slipPotential }}</span></div>
+          <button onClick="{{ placeBet }}" style="margin-top:5px;padding:13px;border-radius:12px;border:none;cursor:pointer;font-size:15px;font-weight:800;background:var(--accent);color:#fff;transition:background .15s,transform .1s;" style-hover="background:var(--accent2);" style-active="transform:scale(0.98);">Сделать ставку</button>
+          <div style="font-size:11px;color:var(--text3);text-align:center;">Мин. 10 · Макс. 10 000 фантиков на исход</div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- Плавающая кнопка купона -->
+  <sc-if value="{{ showFab }}" hint-placeholder-val="{{ false }}">
+    <div data-slip-fab style="position:fixed;right:18px;bottom:20px;z-index:45;">
+      <button onClick="{{ openSlip }}" title="Открыть купон" style="width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;border:none;cursor:pointer;box-shadow:0 10px 28px rgba(101,83,223,.45);display:grid;place-items:center;position:relative;transition:background .15s,transform .12s;" style-hover="background:var(--accent2);transform:translateY(-2px);">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2.5 2.5 0 0 0 0 6v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2.5 2.5 0 0 0 0-6z"></path><path d="M14 5v14" stroke-dasharray="2 2.6"></path></svg>
+        <span style="position:absolute;top:-3px;right:-3px;min-width:21px;height:21px;border-radius:999px;background:var(--red);color:#fff;font-size:11.5px;font-weight:800;display:grid;place-items:center;padding:0 5px;border:2px solid var(--bg);">{{ slipCount }}</span>
+      </button>
+    </div>
+  </sc-if>
+
+  <!-- ===================== МОБИЛЬНАЯ НАВИГАЦИЯ ===================== -->
+  <nav data-mobile-nav style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--border);padding:7px 8px calc(7px + env(safe-area-inset-bottom));justify-content:space-around;">
+    <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4">
+      <button onClick="{{ n.onClick }}" style="flex:1;padding:9px 4px;border-radius:10px;border:none;cursor:pointer;font-size:12px;font-weight:700;background:none;color:{{ n.mobColor }};">{{ n.label }}</button>
+    </sc-for>
+  </nav>
+
+  <!-- ===================== ТОСТЫ ===================== -->
+  <div style="position:fixed;top:14px;right:14px;z-index:100;display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+    <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0">
+      <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:11px 16px;box-shadow:var(--shadow-lg);min-width:230px;max-width:340px;animation:toastIn .25s ease both;">
+        <span style="width:9px;height:9px;border-radius:50%;background:{{ t.color }};flex-shrink:0;"></span>
+        <span style="font-size:13.5px;font-weight:600;line-height:1.4;">{{ t.text }}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- ===================== МОДАЛ ВХОДА ===================== -->
+  <sc-if value="{{ loginOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeLogin }}" style="position:fixed;inset:0;z-index:80;background:rgba(13,14,22,0.5);backdrop-filter:blur(4px);display:grid;place-items:center;padding:20px;animation:toastIn .2s ease both;">
+      <div onClick="{{ stopProp }}" data-screen-label="Модал входа" style="width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:26px;display:flex;flex-direction:column;gap:13px;box-shadow:var(--shadow-lg);animation:fadeUp .25s ease both;">
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <div style="flex:1;">
+            <div style="font-size:20px;font-weight:800;letter-spacing:-0.02em;">Вход в FanticBet</div>
+            <div style="font-size:13px;color:var(--text3);margin-top:3px;">Демо-режим: вход не требуется</div>
+          </div>
+          <button onClick="{{ closeLogin }}" style="width:28px;height:28px;border-radius:8px;border:none;background:var(--surface2);color:var(--text2);cursor:pointer;font-size:15px;display:grid;place-items:center;">×</button>
+        </div>
+        <input type="email" placeholder="Email" style="padding:12px 14px;border-radius:11px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;outline:none;" style-focus="border-color:var(--accent);">
+        <input type="password" placeholder="Пароль" style="padding:12px 14px;border-radius:11px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;outline:none;" style-focus="border-color:var(--accent);">
+        <button onClick="{{ doLogin }}" style="padding:13px;border-radius:12px;border:none;cursor:pointer;font-size:14.5px;font-weight:800;background:var(--accent);color:#fff;transition:background .15s;" style-hover="background:var(--accent2);">Войти</button>
+        <div style="display:flex;align-items:center;gap:10px;color:var(--text3);font-size:12px;font-weight:600;"><span style="flex:1;height:1px;background:var(--border);"></span>или<span style="flex:1;height:1px;background:var(--border);"></span></div>
+        <div style="display:flex;gap:8px;">
+          <button onClick="{{ doLogin }}" style="flex:1;padding:11px 6px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;transition:border-color .15s;" style-hover="border-color:var(--accent);">Google</button>
+          <button onClick="{{ doLogin }}" style="flex:1;padding:11px 6px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;transition:border-color .15s;" style-hover="border-color:var(--accent);">VK</button>
+          <button onClick="{{ doLogin }}" style="flex:1;padding:11px 6px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;transition:border-color .15s;" style-hover="border-color:var(--accent);">Яндекс</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const now = Date.now();
+    const M = 6e4, H = 36e5, D = 864e5;
+    const ML3 = (h, d, a) => ({ id: 'ml', type: 'ML', outcomes: [
+      { code: 'home', label: 'П1', odds: h }, { code: 'draw', label: 'Х', odds: d }, { code: 'away', label: 'П2', odds: a }] });
+    const ML2 = (h, a) => ({ id: 'ml', type: 'ML', outcomes: [
+      { code: 'home', label: 'П1', odds: h }, { code: 'away', label: 'П2', odds: a }] });
+    const TOT = (line, o, u) => ({ id: 'tot', type: 'TOTALS', line: line, outcomes: [
+      { code: 'over', label: 'Б', odds: o }, { code: 'under', label: 'М', odds: u }] });
+    const CUS = (q, opts) => ({ id: 'cus', type: 'CUSTOM', question: q, outcomes: opts.map((x, i) => ({ code: 'opt' + i, label: x[0], odds: x[1] })) });
+
+    this.events = [
+      { id: 4, sport: 'football', league: 'РПЛ · Премьер-лига', home: 'ЦСКА', away: 'Краснодар', startsAt: now - 55 * M, status: 'live', scoreHome: 1, scoreAway: 1, markets: [ML3(2.60, 2.90, 3.10), TOT(2.5, 2.15, 1.70)] },
+      { id: 9, sport: 'basketball', league: 'НБА · Плей-офф', home: 'Уорриорз', away: 'Наггетс', startsAt: now - 70 * M, status: 'live', scoreHome: 54, scoreAway: 51, markets: [ML2(1.70, 2.15), TOT(224.5, 1.95, 1.85)] },
+      { id: 1, sport: 'football', league: 'РПЛ · Премьер-лига', home: 'Зенит', away: 'Спартак', startsAt: now + 3 * H + 20 * M, status: 'upcoming', markets: [ML3(2.10, 3.40, 3.60), TOT(2.5, 1.90, 1.92)] },
+      { id: 5, sport: 'football', league: 'Серия А', home: 'Интер', away: 'Милан', startsAt: now + 5 * H + 40 * M, status: 'upcoming', markets: [ML3(1.95, 3.45, 4.10), TOT(2.5, 1.98, 1.84)] },
+      { id: 7, sport: 'basketball', league: 'НБА · Финал', home: 'Лейкерс', away: 'Селтикс', startsAt: now + 9 * H, status: 'upcoming', markets: [ML2(1.85, 1.95), TOT(220.5, 1.90, 1.90)] },
+      { id: 2, sport: 'football', league: 'АПЛ', home: 'Арсенал', away: 'Ливерпуль', startsAt: now + 26 * H, status: 'upcoming', markets: [ML3(2.45, 3.30, 2.95), TOT(2.5, 1.85, 1.97)] },
+      { id: 8, sport: 'basketball', league: 'Евролига', home: 'Панатинаикос', away: 'Фенербахче', startsAt: now + 30 * H, status: 'upcoming', markets: [ML2(2.05, 1.78), TOT(158.5, 1.92, 1.88)] },
+      { id: 3, sport: 'football', league: 'Лига чемпионов · Финал', home: 'Реал Мадрид', away: 'Бавария', startsAt: now + 2 * D + 4 * H, status: 'upcoming', markets: [ML3(2.20, 3.50, 3.25), TOT(2.5, 2.02, 1.80)] },
+      { id: 11, sport: 'custom', league: 'Кастомное событие', title: 'Курс биткоина выше $120 000 к 1 июля?', startsAt: now + 8 * D, status: 'upcoming', markets: [CUS('Курс биткоина выше $120 000 к 1 июля?', [['Да', 1.85], ['Нет', 1.95]])] },
+      { id: 12, sport: 'custom', league: 'Кастомное событие', title: 'Кто выиграет The International 2026?', startsAt: now + 12 * D, status: 'upcoming', markets: [CUS('Кто выиграет The International 2026?', [['Team Spirit', 2.40], ['Team Liquid', 3.10], ['Другая команда', 2.75]])] },
+      { id: 6, sport: 'football', league: 'АПЛ', home: 'Манчестер Сити', away: 'Челси', startsAt: now - 26 * H, status: 'settled', scoreHome: 2, scoreAway: 0, markets: [ML3(1.75, 3.80, 4.60), TOT(2.5, 1.88, 1.94)] },
+      { id: 10, sport: 'basketball', league: 'НБА', home: 'Бакс', away: 'Хит', startsAt: now - 30 * H, status: 'settled', scoreHome: 112, scoreAway: 98, markets: [ML2(1.62, 2.30), TOT(218.5, 1.90, 1.85)] },
+      { id: 13, sport: 'custom', league: 'Кастомное событие', title: 'Будет ли побит температурный рекорд июня в Москве?', startsAt: now - 2 * D, status: 'settled', markets: [CUS('Будет ли побит температурный рекорд июня в Москве?', [['Да', 2.10], ['Нет', 1.72]])] }
+    ];
+
+    this.lbUsers = [
+      { id: 'u1', name: 'NightOwl', bets: 214, winRate: 61, profit: 48250, roi: 24.6, joined: 'октября 2025' },
+      { id: 'u2', name: 'Марина В.', bets: 187, winRate: 58, profit: 41800, roi: 21.2, joined: 'ноября 2025' },
+      { id: 'u3', name: 'ProFan88', bets: 305, winRate: 55, profit: 36400, roi: 14.8, joined: 'сентября 2025' },
+      { id: 'u4', name: 'Денис Т.', bets: 142, winRate: 59, profit: 29950, roi: 19.4, joined: 'декабря 2025' },
+      { id: 'u5', name: 'Kira_Bets', bets: 168, winRate: 54, profit: 27300, roi: 13.1, joined: 'января 2026' },
+      { id: 'u6', name: 'Сергей Л.', bets: 96, winRate: 60, profit: 24100, roi: 22.7, joined: 'октября 2025' },
+      { id: 'u7', name: 'Ольга М.', bets: 121, winRate: 56, profit: 21850, roi: 16.3, joined: 'февраля 2026' },
+      { id: 'u8', name: 'maxwin2026', bets: 233, winRate: 52, profit: 19400, roi: 9.2, joined: 'ноября 2025' },
+      { id: 'me', name: 'Александр', bets: 78, winRate: 57, profit: 16800, roi: 15.5, joined: 'марта 2026', isMe: true },
+      { id: 'u10', name: 'Виктор П.', bets: 154, winRate: 53, profit: 14250, roi: 8.7, joined: 'декабря 2025' },
+      { id: 'u11', name: 'Анна С.', bets: 88, winRate: 55, profit: 12600, roi: 12.9, joined: 'январь 2026' },
+      { id: 'u12', name: 'LuckyStreak', bets: 197, winRate: 50, profit: 9800, roi: 4.6, joined: 'октября 2025' },
+      { id: 'u13', name: 'Павел Р.', bets: 65, winRate: 54, profit: 8150, roi: 11.0, joined: 'февраля 2026' },
+      { id: 'u14', name: 'Дарья Ф.', bets: 110, winRate: 51, profit: 6400, roi: 5.3, joined: 'марта 2026' },
+      { id: 'u15', name: 'olegator', bets: 142, winRate: 49, profit: 4900, roi: 3.1, joined: 'декабря 2025' }
+    ];
+
+    this.poolBets = [
+      { eventTitle: 'Реал Мадрид — Бавария', outcomeLabel: 'Реал Мадрид', marketLabel: 'Исход матча', odds: 2.20, stake: 800, potential: 1760, status: 'pending' },
+      { eventTitle: 'Зенит — Спартак', outcomeLabel: 'Больше 2.5', marketLabel: 'Тотал 2.5', odds: 1.90, stake: 400, potential: 760, status: 'won' },
+      { eventTitle: 'Лейкерс — Селтикс', outcomeLabel: 'Лейкерс', marketLabel: 'Исход матча', odds: 1.85, stake: 600, potential: 1110, status: 'lost' },
+      { eventTitle: 'Курс биткоина выше $120 000 к 1 июля?', outcomeLabel: 'Да', marketLabel: 'Спецрынок', odds: 1.85, stake: 1000, potential: 1850, status: 'pending' },
+      { eventTitle: 'Интер — Милан', outcomeLabel: 'Ничья', marketLabel: 'Исход матча', odds: 3.45, stake: 150, potential: 517, status: 'won' },
+      { eventTitle: 'Уорриорз — Наггетс', outcomeLabel: 'Меньше 224.5', marketLabel: 'Тотал 224.5', odds: 1.85, stake: 500, potential: 925, status: 'lost' }
+    ];
+
+    this._tid = 0;
+    this.state = {
+      theme: 'light',
+      route: { page: 'home' },
+      sport: 'all', stat: 'all',
+      slip: [], slipOpen: false,
+      balance: 10000,
+      myBets: [
+        { id: 'b1', eventId: 1, eventTitle: 'Зенит — Спартак', marketLabel: 'Исход матча', outcomeLabel: 'Зенит', odds: 2.10, stake: 500, potential: 1050, status: 'pending', at: now - 2 * H },
+        { id: 'b2', eventId: 7, eventTitle: 'Лейкерс — Селтикс', marketLabel: 'Тотал 220.5', outcomeLabel: 'Больше 220.5', odds: 1.90, stake: 300, potential: 570, status: 'pending', at: now - 5 * H },
+        { id: 'b3', eventId: 6, eventTitle: 'Манчестер Сити — Челси', marketLabel: 'Исход матча', outcomeLabel: 'Манчестер Сити', odds: 1.75, stake: 1000, potential: 1750, status: 'won', at: now - 2 * D },
+        { id: 'b4', eventId: 10, eventTitle: 'Бакс — Хит', marketLabel: 'Тотал 218.5', outcomeLabel: 'Меньше 218.5', odds: 1.85, stake: 200, potential: 370, status: 'lost', at: now - 3 * D },
+        { id: 'b5', eventId: 0, eventTitle: 'Валенсия — Севилья', marketLabel: 'Тотал 2.0', outcomeLabel: 'Больше 2.0', odds: 1.90, stake: 250, potential: 475, status: 'void', at: now - 4 * D }
+      ],
+      txs: [
+        { id: 't9', label: 'Еженедельное пополнение', amount: 250, after: 10000, at: now - 1 * H },
+        { id: 't8', label: 'Ставка: Лейкерс — Селтикс', amount: -300, after: 9750, at: now - 5 * H },
+        { id: 't7', label: 'Ставка: Зенит — Спартак', amount: -500, after: 10050, at: now - 2 * H },
+        { id: 't6', label: 'Возврат: Валенсия — Севилья', amount: 250, after: 10550, at: now - 2 * D },
+        { id: 't5', label: 'Выигрыш: Манчестер Сити — Челси', amount: 1750, after: 10300, at: now - 38 * H },
+        { id: 't4', label: 'Ставка: Манчестер Сити — Челси', amount: -1000, after: 8550, at: now - 2 * D },
+        { id: 't3', label: 'Ставка: Валенсия — Севилья', amount: -250, after: 9550, at: now - 4 * D },
+        { id: 't2', label: 'Ставка: Бакс — Хит', amount: -200, after: 9800, at: now - 3 * D },
+        { id: 't1', label: 'Бонус за регистрацию', amount: 10000, after: 10000, at: now - 6 * D }
+      ],
+      betsTab: 'active', lbPeriod: 'week', lbMetric: 'profit',
+      toasts: [], loginOpen: false
+    };
+  }
+
+  componentDidMount() {
+    let t = 'light';
+    try { t = localStorage.getItem('fb-theme') || 'light'; } catch (e) {}
+    document.documentElement.setAttribute('data-theme', t);
+    if (t !== this.state.theme) this.setState({ theme: t });
+  }
+
+  toggleTheme() {
+    const t = this.state.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('fb-theme', t); } catch (e) {}
+    this.setState({ theme: t });
+    this.toast(t === 'dark' ? 'Тёмная тема включена' : 'Светлая тема включена', 'info');
+  }
+
+  toast(text, kind) {
+    const id = ++this._tid;
+    const colors = { ok: 'var(--green)', err: 'var(--red)', info: 'var(--accent)' };
+    this.setState(s => ({ toasts: [...s.toasts, { id, text, color: colors[kind || 'info'] }] }));
+    setTimeout(() => this.setState(s => ({ toasts: s.toasts.filter(x => x.id !== id) })), 3400);
+  }
+
+  go(page, extra) {
+    this.setState({ route: Object.assign({ page: page }, extra || {}) });
+    window.scrollTo({ top: 0 });
+  }
+
+  fmt(n) { return Math.round(n).toLocaleString('ru-RU'); }
+
+  relTime(ev) {
+    if (ev.status === 'live') return 'LIVE';
+    if (ev.status === 'settled') return 'Завершено';
+    const m = Math.max(1, Math.round((ev.startsAt - Date.now()) / 6e4));
+    if (m < 60) return 'через ' + m + ' мин';
+    const h = Math.round(m / 60);
+    if (h < 48) return 'через ' + h + ' ч';
+    return 'через ' + Math.round(h / 24) + ' дн';
+  }
+
+  absTime(ts) {
+    return new Date(ts).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  evTitle(ev) { return ev.sport === 'custom' ? ev.title : ev.home + ' — ' + ev.away; }
+
+  marketTitle(ev, m) {
+    if (m.type === 'ML') return 'Исход матча';
+    if (m.type === 'TOTALS') return 'Тотал ' + m.line;
+    return 'Спецрынок';
+  }
+
+  detailLabel(ev, m, o) {
+    if (m.type === 'ML') return o.code === 'home' ? ev.home : (o.code === 'away' ? ev.away : 'Ничья');
+    if (m.type === 'TOTALS') return (o.code === 'over' ? 'Больше ' : 'Меньше ') + m.line;
+    return o.label;
+  }
+
+  toggleSel(ev, m, o) {
+    if (ev.status !== 'upcoming') { this.toast('Ставки на это событие закрыты', 'err'); return; }
+    const key = ev.id + ':' + m.id + ':' + o.code;
+    this.setState(s => {
+      const exists = s.slip.some(x => x.key === key);
+      let slip = s.slip.filter(x => !(x.eventId === ev.id && x.marketId === m.id));
+      if (!exists) slip = [...slip, {
+        key, eventId: ev.id, marketId: m.id, eventTitle: this.evTitle(ev),
+        marketLabel: this.marketTitle(ev, m), outcomeLabel: this.detailLabel(ev, m, o),
+        odds: o.odds, stake: '100'
+      }];
+      return { slip, slipOpen: exists ? s.slipOpen : true };
+    });
+  }
+
+  placeBet() {
+    const s = this.state;
+    if (!s.slip.length) return;
+    let total = 0;
+    for (const it of s.slip) {
+      const v = parseInt(it.stake, 10);
+      if (!v || v < 10 || v > 10000) { this.toast('Сумма каждой ставки — от 10 до 10 000 фантиков', 'err'); return; }
+      total += v;
+    }
+    if (total > s.balance) { this.toast('Недостаточно фантиков на балансе', 'err'); return; }
+    const at = Date.now();
+    const newBets = s.slip.map((it, i) => {
+      const stake = parseInt(it.stake, 10);
+      return { id: 'nb' + at + i, eventId: it.eventId, eventTitle: it.eventTitle, marketLabel: it.marketLabel, outcomeLabel: it.outcomeLabel, odds: it.odds, stake, potential: Math.floor(stake * it.odds), status: 'pending', at };
+    });
+    let bal = s.balance;
+    const newTxs = [];
+    for (const b of newBets) { bal -= b.stake; newTxs.unshift({ id: 'tx' + b.id, label: 'Ставка: ' + b.eventTitle, amount: -b.stake, after: bal, at }); }
+    this.setState({ balance: bal, myBets: [...newBets, ...s.myBets], txs: [...newTxs, ...s.txs], slip: [], slipOpen: false });
+    this.toast('Ставка принята! Списано ' + this.fmt(total) + ' фантиков', 'ok');
+  }
+
+  statusVM(st) {
+    return {
+      pending: { stLabel: 'В ожидании', stBg: 'var(--amber-soft)', stColor: 'var(--amber)' },
+      won: { stLabel: 'Выиграна', stBg: 'var(--green-soft)', stColor: 'var(--green)' },
+      lost: { stLabel: 'Проиграна', stBg: 'var(--red-soft)', stColor: 'var(--red)' },
+      void: { stLabel: 'Возврат', stBg: 'var(--surface2)', stColor: 'var(--text2)' }
+    }[st];
+  }
+
+  betVM(b) {
+    const st = this.statusVM(b.status);
+    let resLine, resColor;
+    if (b.status === 'pending') { resLine = '→ ' + this.fmt(b.potential); resColor = 'var(--text)'; }
+    else if (b.status === 'won') { resLine = '+' + this.fmt(b.potential - b.stake); resColor = 'var(--green)'; }
+    else if (b.status === 'lost') { resLine = '−' + this.fmt(b.stake); resColor = 'var(--red)'; }
+    else { resLine = 'возврат ' + this.fmt(b.stake); resColor = 'var(--text2)'; }
+    return Object.assign({}, st, {
+      key: b.id, eventTitle: b.eventTitle, outcomeLabel: b.outcomeLabel, marketLabel: b.marketLabel,
+      odds: b.odds.toFixed(2), stake: this.fmt(b.stake), resLine, resColor, date: b.at ? this.absTime(b.at) : ''
+    });
+  }
+
+  outcomeVM(ev, m, o, detail) {
+    const key = ev.id + ':' + m.id + ':' + o.code;
+    const sel = this.state.slip.some(x => x.key === key);
+    const closed = ev.status !== 'upcoming';
+    return {
+      key: key, label: detail ? this.detailLabel(ev, m, o) : o.label, odds: o.odds.toFixed(2),
+      bg: sel ? 'var(--accent)' : 'var(--surface2)',
+      color: sel ? '#ffffff' : (closed ? 'var(--text3)' : 'var(--text)'),
+      border: sel ? 'var(--accent)' : 'var(--border)',
+      onClick: (e) => { e.stopPropagation(); this.toggleSel(ev, m, o); }
+    };
+  }
+
+  avatarBg(name) {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+    return 'oklch(0.55 0.13 ' + h + ')';
+  }
+
+  initials(name) {
+    const p = name.replace(/[^a-zA-Zа-яА-Я0-9 _]/g, '').split(/[ _]+/).filter(Boolean);
+    if (p.length >= 2) return (p[0][0] + p[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+
+  renderVals() {
+    const s = this.state;
+    const route = s.route;
+    const page = route.page;
+
+    // --- навигация
+    const navDefs = [
+      { label: 'Лента', page: 'home', match: ['home', 'event'] },
+      { label: 'Мои ставки', page: 'bets', match: ['bets'] },
+      { label: 'Лидерборд', page: 'leaderboard', match: ['leaderboard', 'profile'] },
+      { label: 'Админ', page: 'admin', match: ['admin'] }
+    ];
+    const navItems = navDefs.map(n => {
+      const active = n.match.indexOf(page) >= 0;
+      return {
+        key: n.page, label: n.label,
+        bg: active ? 'var(--accent-soft)' : 'transparent',
+        color: active ? 'var(--accent)' : 'var(--text2)',
+        mobColor: active ? 'var(--accent)' : 'var(--text3)',
+        onClick: () => this.go(n.page)
+      };
+    });
+
+    // --- фильтры и лента
+    const sportDefs = [['all', 'Все виды'], ['football', 'Футбол'], ['basketball', 'Баскетбол'], ['custom', 'Кастомные']];
+    const statDefs = [['all', 'Все'], ['upcoming', 'Предстоящие'], ['live', 'Live'], ['settled', 'Завершённые']];
+    const chip = (defs, cur, set) => defs.map(d => {
+      const active = cur === d[0];
+      return {
+        key: d[0], label: d[1],
+        bg: active ? 'var(--accent)' : 'var(--surface)',
+        color: active ? '#ffffff' : 'var(--text2)',
+        border: active ? 'var(--accent)' : 'var(--border)',
+        onClick: () => this.setState(set(d[0]))
+      };
+    });
+
+    const order = { live: 0, upcoming: 1, settled: 2 };
+    const filtered = this.events
+      .filter(ev => (s.sport === 'all' || ev.sport === s.sport) && (s.stat === 'all' || ev.status === s.stat))
+      .sort((a, b) => (order[a.status] - order[b.status]) || (a.startsAt - b.startsAt));
+
+    const events = filtered.map(ev => ({
+      key: ev.id,
+      isFootball: ev.sport === 'football', isBasketball: ev.sport === 'basketball', isCustom: ev.sport === 'custom',
+      isMatch: ev.sport !== 'custom',
+      league: ev.league, title: ev.title,
+      isLive: ev.status === 'live', isSettled: ev.status === 'settled', isUpcoming: ev.status === 'upcoming',
+      hasScore: ev.status !== 'upcoming' && ev.scoreHome != null,
+      home: ev.home, away: ev.away, scoreHome: ev.scoreHome, scoreAway: ev.scoreAway,
+      timeRel: this.relTime(ev), timeAbs: this.absTime(ev.startsAt),
+      onOpen: () => this.go('event', { eventId: ev.id }),
+      markets: ev.markets.map(m => ({
+        key: m.id, title: this.marketTitle(ev, m),
+        outcomes: m.outcomes.map(o => this.outcomeVM(ev, m, o, false))
+      }))
+    }));
+
+    const n = filtered.length;
+    const eventsCountLabel = n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? 'событие' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'события' : 'событий'));
+
+    // --- страница события
+    let evd = null;
+    if (page === 'event') {
+      const ev = this.events.find(x => x.id === route.eventId) || this.events[0];
+      const myHere = s.myBets.filter(b => b.eventId === ev.id).map(b => this.betVM(b));
+      evd = {
+        title: this.evTitle(ev), league: ev.league,
+        isMatch: ev.sport !== 'custom', isCustom: ev.sport === 'custom',
+        isLive: ev.status === 'live', isSettled: ev.status === 'settled', isUpcoming: ev.status === 'upcoming',
+        home: ev.home, away: ev.away,
+        centerText: ev.status === 'upcoming' ? 'VS' : ev.scoreHome + ' : ' + ev.scoreAway,
+        timeRel: this.relTime(ev), timeAbs: this.absTime(ev.startsAt),
+        markets: ev.markets.map(m => ({
+          key: m.id,
+          title: m.type === 'CUSTOM' ? m.question : this.marketTitle(ev, m),
+          outcomes: m.outcomes.map(o => this.outcomeVM(ev, m, o, true))
+        })),
+        myBets: myHere, noMyBets: myHere.length === 0
+      };
+    }
+
+    // --- мои ставки
+    const settled = s.myBets.filter(b => b.status === 'won' || b.status === 'lost');
+    const won = settled.filter(b => b.status === 'won');
+    const profit = settled.reduce((a, b) => a + (b.status === 'won' ? b.potential - b.stake : -b.stake), 0);
+    const staked = settled.reduce((a, b) => a + b.stake, 0);
+    const stats = {
+      winRate: settled.length ? Math.round(won.length / settled.length * 100) + '%' : '—',
+      profit: (profit >= 0 ? '+' : '−') + this.fmt(Math.abs(profit)),
+      roi: staked ? (profit >= 0 ? '+' : '−') + Math.abs(profit / staked * 100).toFixed(1) + '%' : '—',
+      profitColor: profit >= 0 ? 'var(--green)' : 'var(--red)'
+    };
+    const active = s.myBets.filter(b => b.status === 'pending');
+    const done = s.myBets.filter(b => b.status !== 'pending');
+    const tabDefs = [['active', 'Активные (' + active.length + ')'], ['done', 'Завершённые (' + done.length + ')'], ['tx', 'Транзакции']];
+    const betTabs = tabDefs.map(d => {
+      const a = s.betsTab === d[0];
+      return {
+        key: d[0], label: d[1],
+        bg: a ? 'var(--surface)' : 'transparent', color: a ? 'var(--text)' : 'var(--text2)',
+        shadow: a ? 'var(--shadow)' : 'none',
+        onClick: () => this.setState({ betsTab: d[0] })
+      };
+    });
+    const betRowsSrc = s.betsTab === 'active' ? active : done;
+    const betRows = betRowsSrc.map(b => this.betVM(b));
+    const txRows = s.txs.map(t => ({
+      key: t.id, label: t.label, date: this.absTime(t.at),
+      amount: (t.amount >= 0 ? '+' : '−') + this.fmt(Math.abs(t.amount)),
+      color: t.amount >= 0 ? 'var(--green)' : 'var(--text)',
+      after: this.fmt(t.after)
+    }));
+
+    // --- лидерборд
+    const perDefs = [['week', 'Неделя'], ['month', 'Месяц'], ['all', 'Всё время']];
+    const lbPeriodChips = perDefs.map(d => {
+      const a = s.lbPeriod === d[0];
+      return { key: d[0], label: d[1], bg: a ? 'var(--accent)' : 'var(--surface)', color: a ? '#ffffff' : 'var(--text2)', border: a ? 'var(--accent)' : 'var(--border)', onClick: () => this.setState({ lbPeriod: d[0] }) };
+    });
+    const metDefs = [['profit', 'Прибыль'], ['roi', 'ROI']];
+    const lbMetricChips = metDefs.map(d => {
+      const a = s.lbMetric === d[0];
+      return { key: d[0], label: d[1], bg: a ? 'var(--surface)' : 'transparent', color: a ? 'var(--text)' : 'var(--text2)', shadow: a ? 'var(--shadow)' : 'none', onClick: () => this.setState({ lbMetric: d[0] }) };
+    });
+    const pFactor = s.lbPeriod === 'week' ? 0.22 : (s.lbPeriod === 'month' ? 0.58 : 1);
+    const bFactor = s.lbPeriod === 'week' ? 0.12 : (s.lbPeriod === 'month' ? 0.45 : 1);
+    const roiShift = s.lbPeriod === 'week' ? 2.4 : (s.lbPeriod === 'month' ? 0.9 : 0);
+    const scaled = this.lbUsers.map(u => ({
+      u: u,
+      profitV: Math.round(u.profit * pFactor),
+      roiV: +(u.roi + roiShift * ((u.id.charCodeAt(1) % 3) - 1)).toFixed(1),
+      betsV: Math.max(3, Math.round(u.bets * bFactor))
+    }));
+    scaled.sort((a, b) => s.lbMetric === 'profit' ? b.profitV - a.profitV : b.roiV - a.roiV);
+    const medal = ['var(--gold)', '#9aa3b2', '#c2855a'];
+    const lbRows = scaled.slice(0, 15).map((x, i) => {
+      const val = s.lbMetric === 'profit' ? x.profitV : x.roiV;
+      return {
+        key: x.u.id, rank: i + 1,
+        rankBg: i < 3 ? medal[i] : 'transparent', rankColor: i < 3 ? '#ffffff' : 'var(--text3)',
+        initials: this.initials(x.u.name), avatarBg: this.avatarBg(x.u.name),
+        name: x.u.name + (x.u.isMe ? ' (вы)' : ''),
+        rowBg: x.u.isMe ? 'var(--accent-soft)' : 'transparent',
+        value: s.lbMetric === 'profit' ? (val >= 0 ? '+' : '−') + this.fmt(Math.abs(val)) : (val >= 0 ? '+' : '−') + Math.abs(val).toFixed(1) + '%',
+        valueColor: val >= 0 ? 'var(--green)' : 'var(--red)',
+        bets: x.betsV, winRate: x.u.winRate + '%',
+        onOpen: () => this.go('profile', { userId: x.u.id })
+      };
+    });
+
+    // --- профиль
+    let pf = null;
+    if (page === 'profile') {
+      const u = this.lbUsers.find(x => x.id === route.userId) || this.lbUsers[0];
+      const idx = this.lbUsers.indexOf(u);
+      const recent = [0, 1, 2, 3].map(k => this.poolBets[(idx + k) % this.poolBets.length]);
+      pf = {
+        name: u.name, joined: u.joined, initials: this.initials(u.name), avatarBg: this.avatarBg(u.name),
+        bets: u.bets, winRate: u.winRate + '%',
+        profit: '+' + this.fmt(u.profit), roi: '+' + u.roi.toFixed(1) + '%',
+        profitColor: 'var(--green)',
+        recentBets: recent.map((b, k) => Object.assign(this.betVM(Object.assign({ id: 'pb' + k, at: 0 }, b)), { date: '' }))
+      };
+    }
+
+    // --- админ
+    const adminEvents = this.events.filter(e => e.sport === 'custom').map(e => {
+      const st = e.status === 'settled'
+        ? { stLabel: 'Рассчитано', stBg: 'var(--surface2)', stColor: 'var(--text2)' }
+        : { stLabel: 'Открыто', stBg: 'var(--green-soft)', stColor: 'var(--green)' };
+      return Object.assign({
+        key: e.id, title: e.title, date: this.absTime(e.startsAt),
+        onSettle: () => this.toast('Демо: событие «' + e.title.slice(0, 28) + '…» отмечено рассчитанным', 'info'),
+        onCancel: () => this.toast('Демо: событие отменено, ставки вернутся игрокам', 'info')
+      }, st);
+    });
+
+    // --- купон
+    const slipItems = s.slip.map(it => {
+      const v = parseInt(it.stake, 10);
+      return {
+        key: it.key, eventTitle: it.eventTitle, marketLabel: it.marketLabel, outcomeLabel: it.outcomeLabel,
+        odds: it.odds.toFixed(2), stake: it.stake,
+        potential: v > 0 ? this.fmt(Math.floor(v * it.odds)) : '—',
+        onRemove: () => this.setState(st => ({ slip: st.slip.filter(x => x.key !== it.key) })),
+        onStake: (e) => {
+          const val = e.target.value;
+          this.setState(st => ({ slip: st.slip.map(x => x.key === it.key ? Object.assign({}, x, { stake: val }) : x) }));
+        }
+      };
+    });
+    let slipTotalN = 0, slipPotN = 0;
+    for (const it of s.slip) {
+      const v = parseInt(it.stake, 10);
+      if (v > 0) { slipTotalN += v; slipPotN += Math.floor(v * it.odds); }
+    }
+
+    return {
+      // header
+      navItems, balanceFmt: this.fmt(s.balance),
+      isDark: s.theme === 'dark', isLight: s.theme !== 'dark',
+      toggleTheme: () => this.toggleTheme(),
+      goHome: () => this.go('home'), goBets: () => this.go('bets'), goLb: () => this.go('leaderboard'),
+      openLogin: () => this.setState({ loginOpen: true }),
+      closeLogin: () => this.setState({ loginOpen: false }),
+      doLogin: () => { this.setState({ loginOpen: false }); this.toast('Вход выполнен (демо)', 'ok'); },
+      stopProp: (e) => e.stopPropagation(),
+      loginOpen: s.loginOpen,
+      // pages
+      isHome: page === 'home', isEvent: page === 'event', isBets: page === 'bets',
+      isLb: page === 'leaderboard', isProfile: page === 'profile', isAdmin: page === 'admin',
+      // home
+      sportChips: chip(sportDefs, s.sport, v => ({ sport: v })),
+      statusChips: chip(statDefs, s.stat, v => ({ stat: v })),
+      events, eventsCountLabel,
+      // event detail
+      evd,
+      // bets
+      stats, betTabs, betRows, txRows,
+      showBetRows: s.betsTab !== 'tx', showTxRows: s.betsTab === 'tx',
+      betsEmpty: s.betsTab !== 'tx' && betRows.length === 0,
+      // leaderboard
+      lbPeriodChips, lbMetricChips, lbRows,
+      lbValueHeader: s.lbMetric === 'profit' ? 'Прибыль' : 'ROI',
+      // profile
+      pf,
+      // admin
+      adminEvents,
+      adminCreate: () => this.toast('Событие создано (демо-режим, данные не сохраняются)', 'ok'),
+      // slip
+      slipOpen: s.slipOpen, slipCount: s.slip.length,
+      hasSlip: s.slip.length > 0, slipEmpty: s.slip.length === 0,
+      showFab: !s.slipOpen && s.slip.length > 0,
+      slipItems,
+      slipTotal: this.fmt(slipTotalN), slipPotential: this.fmt(slipPotN),
+      openSlip: () => this.setState({ slipOpen: true }),
+      closeSlip: () => this.setState({ slipOpen: false }),
+      clearSlip: () => this.setState({ slip: [] }),
+      placeBet: () => this.placeBet(),
+      // toasts
+      toasts: s.toasts
+    };
+  }
+}
+</script>
+</body>
+</html>
