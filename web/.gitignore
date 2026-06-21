@@ -1,0 +1,16 @@
+# Зависимости и сборка фронта
+node_modules
+dist
+dist-ssr
+
+# Логи
+*.log
+npm-debug.log*
+
+# Локальное окружение
+.env
+.env.local
+
+# Кэш редакторов
+.DS_Store
+*.local
