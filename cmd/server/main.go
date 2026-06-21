@@ -92,6 +92,10 @@ func main() {
 	// история ставок и лидерборд с in-memory кэшем. Порог числа ставок для
 	// попадания в топ берётся из конфига LEADERBOARD_MIN_BETS.
 	statsSvc := service.NewStatsService(userRepo, betRepo, repository.NewStatsRepository(pool), cfg.LeaderboardMinBets)
+	// AdminService — админка (M6): создание/правка/отмена/расчёт кастомных
+	// событий и ручная корректировка баланса. Отмена и расчёт делегируются в
+	// SettlementService (идемпотентные выплаты/возвраты).
+	adminSvc := service.NewAdminService(txMgr, eventRepo, marketRepo, outcomeRepo, walletRepo, walletTxRepo, settlementSvc, nil)
 
 	yandexCfg, vkCfg := handler.NewOAuthConfigs(
 		cfg.YandexClientID, cfg.YandexClientSecret, cfg.YandexRedirectURI,
@@ -104,6 +108,7 @@ func main() {
 	betH := handler.NewBetHandler(bettingSvc)
 	oauthH := handler.NewOAuthHandler(oauthSvc, yandexCfg, vkCfg, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
 	statsH := handler.NewStatsHandler(statsSvc)
+	adminH := handler.NewAdminHandler(adminSvc)
 
 	// Setup router
 	if os.Getenv("GIN_MODE") == "" {
@@ -169,6 +174,16 @@ func main() {
 			me.PATCH("", userH.UpdateMe)
 			me.GET("/transactions", userH.Transactions)
 			me.GET("/bets", betH.List)
+		}
+
+		// Админка (M6): за AuthRequired + AdminRequired (роль admin). Создание,
+		// правка/отмена, ручной расчёт кастомных событий и корректировка баланса.
+		admin := v1.Group("/admin", middleware.AuthRequired(jwtMgr), middleware.AdminRequired())
+		{
+			admin.POST("/events", adminH.CreateEvent)
+			admin.PATCH("/events/:id", adminH.EditEvent)
+			admin.POST("/events/:id/settle", adminH.SettleEvent)
+			admin.POST("/users/:id/adjust", adminH.AdjustBalance)
 		}
 	}
 
