@@ -91,13 +91,25 @@ const (
 // OutcomeCustomPrefix — префикс кодов исходов кастомного рынка (opt_1, opt_2, …).
 const OutcomeCustomPrefix = "opt_"
 
-// Результаты исхода/ставки. Совпадают со значениями колонок outcomes.result и
-// bets.status (кроме pending, который относится только к ставке). NULL в
-// outcomes.result означает «ещё не рассчитан».
+// Результат исхода. Совпадает со значениями колонки outcomes.result.
+// NULL в outcomes.result означает «ещё не рассчитан»; pending здесь быть не
+// может — он относится только к ставке (см. BetStatus).
 type Result string
 
 const (
 	ResultWon  Result = "won"  // выигрыш
 	ResultLost Result = "lost" // проигрыш
 	ResultVoid Result = "void" // возврат (push / отмена)
+)
+
+// Статусы ставки. Совпадают со значениями колонки bets.status. pending — ставка
+// размещена, но исход ещё не рассчитан; won/lost/void — результат после settlement
+// (значения совпадают с Result, т.к. ставка на winning-исход выигрывает и т.п.).
+type BetStatus string
+
+const (
+	BetPending BetStatus = "pending" // ожидает расчёта
+	BetWon     BetStatus = "won"     // рассчитана выигрышем
+	BetLost    BetStatus = "lost"    // рассчитана проигрышем
+	BetVoid    BetStatus = "void"    // возврат (исход void или событие cancelled)
 )

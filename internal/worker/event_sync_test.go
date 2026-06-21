@@ -10,10 +10,13 @@ import (
 )
 
 // fakeEventRepo — минимальный фейк EventRepository для EventSync (нужен Upsert).
+// Поля forOdds/forSettlement используются воркерами OddsSync/Settlement; для
+// EventSync они просто не задаются.
 type fakeEventRepo struct {
-	upserts []domain.Event
-	nextID  int64
-	forOdds []domain.Event
+	upserts       []domain.Event
+	nextID        int64
+	forOdds       []domain.Event
+	forSettlement []domain.Event
 }
 
 func (f *fakeEventRepo) Upsert(_ context.Context, e domain.Event) (int64, error) {
@@ -31,7 +34,9 @@ func (f *fakeEventRepo) ListSports(context.Context) ([]string, error) { return n
 func (f *fakeEventRepo) ListForOddsSync(context.Context, time.Duration) ([]domain.Event, error) {
 	return f.forOdds, nil
 }
-func (f *fakeEventRepo) ListForSettlement(context.Context) ([]domain.Event, error) { return nil, nil }
+func (f *fakeEventRepo) ListForSettlement(context.Context) ([]domain.Event, error) {
+	return f.forSettlement, nil
+}
 func (f *fakeEventRepo) UpdateStatusAndScores(context.Context, int64, domain.EventStatus, []byte) error {
 	return nil
 }

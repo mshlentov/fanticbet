@@ -139,33 +139,33 @@
 ## M3. Ставки и расчёт
 
 ### Миграция и domain
-- [ ] 🟢 Миграция `bets` (+ индексы user/created_at и частичный по event WHERE status='pending')
-- [ ] 🟢 Domain-структура `Bet` + константы статусов
-- [ ] 🟢 Вынести `BET_MIN`/`BET_MAX` в конфиг
+- [x] 🟢 Миграция `bets` (+ индексы user/created_at и частичный по event WHERE status='pending')
+- [x] 🟢 Domain-структура `Bet` + константы статусов
+- [x] 🟢 Вынести `BET_MIN`/`BET_MAX` в конфиг
 
 ### Репозиторий
-- [ ] 🟡 `BetRepository`: `Create`, `GetByID`, `ListByUser` (status/page), `ListPendingByOutcomes`, `UpdateStatusSettled`
+- [x] 🟡 `BetRepository`: `Create`, `GetByID`, `ListByUser` (status/page), `ListPendingByOutcomes`, `UpdateStatusSettled`
 
 ### Размещение ставки
-- [ ] 🔴 `BettingService.PlaceBet` — **одна транзакция**:
+- [x] 🔴 `BettingService.PlaceBet` — **одна транзакция**:
   1. загрузить outcome→market→event, проверить `event.status='upcoming'`, `starts_at>now()`, `market.status='open'`
   2. `wallet FOR UPDATE`
   3. проверить `balance ≥ stake` и `stake ∈ [min,max]`
   4. `INSERT bet` (odds = текущий outcome.odds, `potential_payout = floor(stake*odds)`)
   5. списать с кошелька + `wallet_transactions(type='bet_stake', amount=-stake)`
-- [ ] 🟢 `POST /bets` (`{outcome_id, stake}`) + валидация
-- [ ] 🟢 `GET /me/bets?status=&page=`
+- [x] 🟢 `POST /bets` (`{outcome_id, stake}`) + валидация
+- [x] 🟢 `GET /me/bets?status=&page=`
 - [ ] 🟡 *(тест)* Конкурентная ставка: 2 параллельных запроса не уводят баланс в минус (проверка `FOR UPDATE`)
 
 ### Settlement
-- [ ] 🟡 `SettlementService`: расчёт **ML** (победитель из `scores.home/away`, ничья → draw)
-- [ ] 🟡 `SettlementService`: расчёт **TOTALS** (`home+away` vs `line`; равенство линии → void/push)
-- [ ] 🔴 `SettlementService.SettleEvent` — пометить outcomes.result, market.status='settled', затем по каждой pending-ставке **в транзакции**: won → payout + tx `bet_payout`; lost → только статус; void → refund stake + tx `bet_refund`; в конце event.status='settled', сохранить `scores`
-- [ ] 🟡 Обработка статуса `cancelled` из API → void всех ставок события с возвратом
-- [ ] 🟡 Обеспечить идемпотентность (обрабатывать только `pending`-ставки; повторный прогон безопасен)
-- [ ] 🟡 `SettlementWorker` (каждые 5 мин): выбрать started-события oddsapi → `GetEvent` → при `settled`/`cancelled` вызвать сервис
-- [ ] 🟢 Подключить settlement-воркер в раннер
-- [ ] 🟡 *(тест)* Полный цикл: ставка → settlement won/lost/void → корректные баланс и транзакции
+- [x] 🟡 `SettlementService`: расчёт **ML** (победитель из `scores.home/away`, ничья → draw)
+- [x] 🟡 `SettlementService`: расчёт **TOTALS** (`home+away` vs `line`; равенство линии → void/push)
+- [x] 🔴 `SettlementService.SettleEvent` — пометить outcomes.result, market.status='settled', затем по каждой pending-ставке **в транзакции**: won → payout + tx `bet_payout`; lost → только статус; void → refund stake + tx `bet_refund`; в конце event.status='settled', сохранить `scores`
+- [x] 🟡 Обработка статуса `cancelled` из API → void всех ставок события с возвратом
+- [x] 🟡 Обеспечить идемпотентность (обрабатывать только `pending`-ставки; повторный прогон безопасен)
+- [x] 🟡 `SettlementWorker` (каждые 5 мин): выбрать started-события oddsapi → `GetEvent` → при `settled`/`cancelled` вызвать сервис
+- [x] 🟢 Подключить settlement-воркер в раннер
+- [x] 🟡 *(тест)* Полный цикл: ставка → settlement won/lost/void → корректные баланс и транзакции
 
 ---
 

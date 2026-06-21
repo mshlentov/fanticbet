@@ -38,6 +38,10 @@ type Config struct {
 	// котировки — раз в 30 минут.
 	EventSyncSchedule string
 	OddsSyncSchedule  string
+	// SettlementSchedule — расписание расчёта ставок. Воркер проверяет начавшиеся
+	// oddsapi-события и при их завершении/отмене рассчитывает pending-ставки
+	// (выплата/возврат). См. architecture.md §5 (по умолчанию каждые 5 мин).
+	SettlementSchedule string
 	// OddsSyncWindowHours — горизонт выборки событий для обновления котировок:
 	// берём upcoming-события, стартующие в ближайшие N часов.
 	OddsSyncWindowHours int
@@ -85,6 +89,7 @@ func Load() (*Config, error) {
 
 		EventSyncSchedule:   getEnv("EVENT_SYNC_SCHEDULE", "@every 1h"),
 		OddsSyncSchedule:    getEnv("ODDS_SYNC_SCHEDULE", "@every 30m"),
+		SettlementSchedule:  getEnv("SETTLEMENT_SCHEDULE", "@every 5m"),
 		OddsSyncWindowHours: getEnvInt("ODDS_SYNC_WINDOW_HOURS", 48),
 
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),

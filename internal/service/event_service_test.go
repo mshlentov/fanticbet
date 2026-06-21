@@ -14,10 +14,23 @@ import (
 
 // --- Фейки репозиториев каталога событий ---
 
+// Поля *_calls / resultUpdates / statusUpdates добавлены для тестов settlement:
+// они фиксируют, что воркер/сервис записал в репозиторий. Существующие тесты
+// event_service их не проверяют, поэтому расширение обратно совместимо.
+
 type fakeEventRepo struct {
-	listFn   func(ctx context.Context, f repository.EventFilter) ([]domain.Event, error)
-	getFn    func(ctx context.Context, id int64) (domain.Event, error)
-	sportsFn func(ctx context.Context) ([]string, error)
+	listFn            func(ctx context.Context, f repository.EventFilter) ([]domain.Event, error)
+	getFn             func(ctx context.Context, id int64) (domain.Event, error)
+	sportsFn          func(ctx context.Context) ([]string, error)
+	listForSettlement func(ctx context.Context) ([]domain.Event, error)
+	statusScoresCalls []eventStatusScoreCall // все вызовы UpdateStatusAndScores
+}
+
+// eventStatusScoreCall — запись одного вызова UpdateStatusAndScores.
+type eventStatusScoreCall struct {
+	ID     int64
+	Status domain.EventStatus
+	Scores []byte
 }
 
 func (m *fakeEventRepo) Upsert(context.Context, domain.Event) (int64, error) { return 0, nil }
@@ -31,32 +44,54 @@ func (m *fakeEventRepo) ListSports(ctx context.Context) ([]string, error) { retu
 func (m *fakeEventRepo) ListForOddsSync(context.Context, time.Duration) ([]domain.Event, error) {
 	return nil, nil
 }
-func (m *fakeEventRepo) ListForSettlement(context.Context) ([]domain.Event, error) { return nil, nil }
-func (m *fakeEventRepo) UpdateStatusAndScores(context.Context, int64, domain.EventStatus, []byte) error {
+func (m *fakeEventRepo) ListForSettlement(ctx context.Context) ([]domain.Event, error) {
+	if m.listForSettlement != nil {
+		return m.listForSettlement(ctx)
+	}
+	return nil, nil
+}
+func (m *fakeEventRepo) UpdateStatusAndScores(_ context.Context, id int64, status domain.EventStatus, scores []byte) error {
+	m.statusScoresCalls = append(m.statusScoresCalls, eventStatusScoreCall{ID: id, Status: status, Scores: scores})
 	return nil
 }
 
 type fakeMarketRepo struct {
-	byEvent  map[int64][]domain.Market
-	byEvents func(ctx context.Context, ids []int64) ([]domain.Market, error)
+	byEvent       map[int64][]domain.Market
+	byEvents      func(ctx context.Context, ids []int64) ([]domain.Market, error)
+	getByIDFn     func(ctx context.Context, id int64) (domain.Market, error)
+	statusUpdates map[int64]domain.MarketStatus // market_id → новый статус (тесты settlement)
 }
 
 func (m *fakeMarketRepo) CreateForEvent(context.Context, domain.Market) (int64, error) { return 0, nil }
+func (m *fakeMarketRepo) GetByID(ctx context.Context, id int64) (domain.Market, error) {
+	return m.getByIDFn(ctx, id)
+}
 func (m *fakeMarketRepo) GetByEvent(_ context.Context, eventID int64) ([]domain.Market, error) {
 	return m.byEvent[eventID], nil
 }
 func (m *fakeMarketRepo) GetByEvents(ctx context.Context, ids []int64) ([]domain.Market, error) {
 	return m.byEvents(ctx, ids)
 }
-func (m *fakeMarketRepo) UpdateStatus(context.Context, int64, domain.MarketStatus) error { return nil }
-func (m *fakeMarketRepo) UpdateLine(context.Context, int64, *decimal.Decimal) error      { return nil }
+func (m *fakeMarketRepo) UpdateStatus(_ context.Context, id int64, status domain.MarketStatus) error {
+	if m.statusUpdates == nil {
+		m.statusUpdates = map[int64]domain.MarketStatus{}
+	}
+	m.statusUpdates[id] = status
+	return nil
+}
+func (m *fakeMarketRepo) UpdateLine(context.Context, int64, *decimal.Decimal) error { return nil }
 
 type fakeOutcomeRepo struct {
-	byMarket  map[int64][]domain.Outcome
-	byMarkets func(ctx context.Context, ids []int64) ([]domain.Outcome, error)
+	byMarket      map[int64][]domain.Outcome
+	byMarkets     func(ctx context.Context, ids []int64) ([]domain.Outcome, error)
+	getByIDFn     func(ctx context.Context, id int64) (domain.Outcome, error)
+	resultUpdates map[int64]domain.Result // outcome_id → результат (тесты settlement)
 }
 
 func (m *fakeOutcomeRepo) Upsert(context.Context, domain.Outcome) (int64, error) { return 0, nil }
+func (m *fakeOutcomeRepo) GetByID(ctx context.Context, id int64) (domain.Outcome, error) {
+	return m.getByIDFn(ctx, id)
+}
 func (m *fakeOutcomeRepo) GetByMarket(_ context.Context, marketID int64) ([]domain.Outcome, error) {
 	return m.byMarket[marketID], nil
 }
@@ -64,7 +99,13 @@ func (m *fakeOutcomeRepo) GetByMarkets(ctx context.Context, ids []int64) ([]doma
 	return m.byMarkets(ctx, ids)
 }
 func (m *fakeOutcomeRepo) UpdateOdds(context.Context, int64, decimal.Decimal) error { return nil }
-func (m *fakeOutcomeRepo) UpdateResult(context.Context, int64, domain.Result) error { return nil }
+func (m *fakeOutcomeRepo) UpdateResult(_ context.Context, id int64, result domain.Result) error {
+	if m.resultUpdates == nil {
+		m.resultUpdates = map[int64]domain.Result{}
+	}
+	m.resultUpdates[id] = result
+	return nil
+}
 
 // --- Тесты ---
 

@@ -73,6 +73,7 @@ func main() {
 	eventRepo := repository.NewEventRepository(pool)
 	marketRepo := repository.NewMarketRepository(pool)
 	outcomeRepo := repository.NewOutcomeRepository(pool)
+	betRepo := repository.NewBetRepository(pool)
 
 	jwtMgr, err := security.NewJWTManager(cfg.JWTSecret, accessTTL)
 	if err != nil {
@@ -82,6 +83,10 @@ func main() {
 	authSvc := service.NewAuthService(txMgr, userRepo, refreshRepo, walletRepo, walletTxRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
 	userSvc := service.NewUserService(userRepo, walletRepo, walletTxRepo)
 	eventSvc := service.NewEventService(eventRepo, marketRepo, outcomeRepo)
+	bettingSvc := service.NewBettingService(txMgr, betRepo, outcomeRepo, marketRepo, eventRepo, walletRepo, walletTxRepo, cfg.BetMin, cfg.BetMax)
+	// SettlementService — расчёт завершённых событий. Используется воркером (не
+	// хендлером): тот же набор репозиториев, что у BettingService, плюс tx-менеджер.
+	settlementSvc := service.NewSettlementService(txMgr, eventRepo, marketRepo, outcomeRepo, betRepo, walletRepo, walletTxRepo, nil)
 	oauthSvc := service.NewOAuthService(txMgr, userRepo, walletRepo, walletTxRepo, authIdentityRepo, refreshRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
 
 	yandexCfg, vkCfg := handler.NewOAuthConfigs(
@@ -92,6 +97,7 @@ func main() {
 	authH := handler.NewAuthHandler(authSvc, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
 	userH := handler.NewUserHandler(userSvc)
 	eventH := handler.NewEventHandler(eventSvc)
+	betH := handler.NewBetHandler(bettingSvc)
 	oauthH := handler.NewOAuthHandler(oauthSvc, yandexCfg, vkCfg, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
 
 	// Setup router
@@ -141,12 +147,17 @@ func main() {
 		v1.GET("/events", eventH.List)
 		v1.GET("/events/:id", eventH.Get)
 
+		// Размещение ставки (требует авторизации). Отдельный маршрут, а не под
+		// /me, т.к. это действие над событием, а не над профилем.
+		v1.POST("/bets", middleware.AuthRequired(jwtMgr), betH.Place)
+
 		// Профиль текущего пользователя (за AuthRequired).
 		me := v1.Group("/me", middleware.AuthRequired(jwtMgr))
 		{
 			me.GET("", userH.GetMe)
 			me.PATCH("", userH.UpdateMe)
 			me.GET("/transactions", userH.Transactions)
+			me.GET("/bets", betH.List)
 		}
 	}
 
@@ -161,6 +172,7 @@ func main() {
 
 		eventSync := worker.NewEventSyncWorker(eventRepo, marketRepo, oddsClient, cfg.Sports, nil)
 		oddsSync := worker.NewOddsSyncWorker(eventRepo, marketRepo, outcomeRepo, oddsClient, cfg.Bookmaker, oddsWindow, nil)
+		settlement := worker.NewSettlementWorker(eventRepo, oddsClient, settlementSvc, nil)
 
 		runner = worker.NewRunner(nil)
 		if err := runner.Register(worker.Job{
@@ -178,6 +190,14 @@ func main() {
 			Run:      oddsSync.Run,
 		}); err != nil {
 			log.Fatalf("Failed to register odds-sync worker: %v", err)
+		}
+		if err := runner.Register(worker.Job{
+			Name:     "settlement",
+			Schedule: cfg.SettlementSchedule,
+			Timeout:  2 * time.Minute,
+			Run:      settlement.Run,
+		}); err != nil {
+			log.Fatalf("Failed to register settlement worker: %v", err)
 		}
 		runner.Start()
 	}
