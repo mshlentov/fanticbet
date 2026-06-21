@@ -24,6 +24,16 @@ func (f *fakeEventRepo) Upsert(_ context.Context, e domain.Event) (int64, error)
 	f.upserts = append(f.upserts, e)
 	return f.nextID, nil
 }
+// Create/UpdateDetails — заглушки для M6: воркеры эти методы не используют,
+// но интерфейс EventRepository их требует.
+func (f *fakeEventRepo) Create(_ context.Context, e domain.Event) (int64, error) {
+	f.nextID++
+	f.upserts = append(f.upserts, e)
+	return f.nextID, nil
+}
+func (f *fakeEventRepo) UpdateDetails(context.Context, int64, *string, *time.Time) error {
+	return nil
+}
 func (f *fakeEventRepo) GetByID(context.Context, int64) (domain.Event, error) {
 	return domain.Event{}, nil
 }

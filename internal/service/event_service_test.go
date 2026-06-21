@@ -24,6 +24,9 @@ type fakeEventRepo struct {
 	sportsFn          func(ctx context.Context) ([]string, error)
 	listForSettlement func(ctx context.Context) ([]domain.Event, error)
 	statusScoresCalls []eventStatusScoreCall // все вызовы UpdateStatusAndScores
+	// M6: флаги для отслеживания вызовов новых методов admin-сценариями.
+	createCalls        []domain.Event
+	updateDetailsCalls []eventDetailsCall
 }
 
 // eventStatusScoreCall — запись одного вызова UpdateStatusAndScores.
@@ -33,7 +36,22 @@ type eventStatusScoreCall struct {
 	Scores []byte
 }
 
+// eventDetailsCall — запись одного вызова UpdateDetails (M6).
+type eventDetailsCall struct {
+	ID       int64
+	Title    *string
+	StartsAt *time.Time
+}
+
 func (m *fakeEventRepo) Upsert(context.Context, domain.Event) (int64, error) { return 0, nil }
+func (m *fakeEventRepo) Create(_ context.Context, e domain.Event) (int64, error) {
+	m.createCalls = append(m.createCalls, e)
+	return int64(len(m.createCalls)), nil
+}
+func (m *fakeEventRepo) UpdateDetails(_ context.Context, id int64, title *string, startsAt *time.Time) error {
+	m.updateDetailsCalls = append(m.updateDetailsCalls, eventDetailsCall{ID: id, Title: title, StartsAt: startsAt})
+	return nil
+}
 func (m *fakeEventRepo) GetByID(ctx context.Context, id int64) (domain.Event, error) {
 	return m.getFn(ctx, id)
 }
@@ -56,13 +74,21 @@ func (m *fakeEventRepo) UpdateStatusAndScores(_ context.Context, id int64, statu
 }
 
 type fakeMarketRepo struct {
-	byEvent       map[int64][]domain.Market
-	byEvents      func(ctx context.Context, ids []int64) ([]domain.Market, error)
-	getByIDFn     func(ctx context.Context, id int64) (domain.Market, error)
-	statusUpdates map[int64]domain.MarketStatus // market_id → новый статус (тесты settlement)
+	byEvent        map[int64][]domain.Market
+	byEvents       func(ctx context.Context, ids []int64) ([]domain.Market, error)
+	getByIDFn      func(ctx context.Context, id int64) (domain.Market, error)
+	statusUpdates  map[int64]domain.MarketStatus  // market_id → новый статус (тесты settlement)
+	questionCalls  map[int64]*string              // market_id → новый вопрос (тесты M6)
+	createCalls    []domain.Market                // все вызовы CreateForEvent (тесты M6)
+	createNextID   int64                          // счётчик id для создаваемых рынков
 }
 
-func (m *fakeMarketRepo) CreateForEvent(context.Context, domain.Market) (int64, error) { return 0, nil }
+func (m *fakeMarketRepo) CreateForEvent(_ context.Context, mk domain.Market) (int64, error) {
+	m.createNextID++
+	mk.ID = m.createNextID
+	m.createCalls = append(m.createCalls, mk)
+	return mk.ID, nil
+}
 func (m *fakeMarketRepo) GetByID(ctx context.Context, id int64) (domain.Market, error) {
 	return m.getByIDFn(ctx, id)
 }
@@ -80,15 +106,36 @@ func (m *fakeMarketRepo) UpdateStatus(_ context.Context, id int64, status domain
 	return nil
 }
 func (m *fakeMarketRepo) UpdateLine(context.Context, int64, *decimal.Decimal) error { return nil }
-
-type fakeOutcomeRepo struct {
-	byMarket      map[int64][]domain.Outcome
-	byMarkets     func(ctx context.Context, ids []int64) ([]domain.Outcome, error)
-	getByIDFn     func(ctx context.Context, id int64) (domain.Outcome, error)
-	resultUpdates map[int64]domain.Result // outcome_id → результат (тесты settlement)
+func (m *fakeMarketRepo) UpdateQuestion(_ context.Context, id int64, question *string) error {
+	if m.questionCalls == nil {
+		m.questionCalls = map[int64]*string{}
+	}
+	m.questionCalls[id] = question
+	return nil
 }
 
-func (m *fakeOutcomeRepo) Upsert(context.Context, domain.Outcome) (int64, error) { return 0, nil }
+type fakeOutcomeRepo struct {
+	byMarket          map[int64][]domain.Outcome
+	byMarkets         func(ctx context.Context, ids []int64) ([]domain.Outcome, error)
+	getByIDFn         func(ctx context.Context, id int64) (domain.Outcome, error)
+	resultUpdates     map[int64]domain.Result // outcome_id → результат (тесты settlement)
+	upsertCalls       []domain.Outcome        // все вызовы Upsert (тесты M6)
+	upsertNextID      int64                   // счётчик id для создаваемых исходов
+	labelOddsCalls    map[int64]labelOddsCall // outcome_id → правка label/odds (тесты M6)
+}
+
+// labelOddsCall — запись одного вызова UpdateLabelAndOdds (M6).
+type labelOddsCall struct {
+	Label *string
+	Odds  *decimal.Decimal
+}
+
+func (m *fakeOutcomeRepo) Upsert(_ context.Context, o domain.Outcome) (int64, error) {
+	m.upsertNextID++
+	o.ID = m.upsertNextID
+	m.upsertCalls = append(m.upsertCalls, o)
+	return o.ID, nil
+}
 func (m *fakeOutcomeRepo) GetByID(ctx context.Context, id int64) (domain.Outcome, error) {
 	return m.getByIDFn(ctx, id)
 }
@@ -104,6 +151,13 @@ func (m *fakeOutcomeRepo) UpdateResult(_ context.Context, id int64, result domai
 		m.resultUpdates = map[int64]domain.Result{}
 	}
 	m.resultUpdates[id] = result
+	return nil
+}
+func (m *fakeOutcomeRepo) UpdateLabelAndOdds(_ context.Context, id int64, label *string, odds *decimal.Decimal) error {
+	if m.labelOddsCalls == nil {
+		m.labelOddsCalls = map[int64]labelOddsCall{}
+	}
+	m.labelOddsCalls[id] = labelOddsCall{Label: label, Odds: odds}
 	return nil
 }
 

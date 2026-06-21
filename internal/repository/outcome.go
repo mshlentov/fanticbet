@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"fanticbet/internal/domain"
 
@@ -30,6 +31,10 @@ type OutcomeRepository interface {
 	// UpdateResult проставляет результат исхода (won/lost/void) при расчёте.
 	// Возвращает domain.ErrNotFound, если исхода с таким id нет.
 	UpdateResult(ctx context.Context, id int64, result domain.Result) error
+	// UpdateLabelAndOdds правит label и/или коэффициент исхода. nil-поля оставляют
+	// текущее значение. Используется админом для правки исходов кастомного события.
+	// Возвращает domain.ErrNotFound, если исхода с таким id нет.
+	UpdateLabelAndOdds(ctx context.Context, id int64, label *string, odds *decimal.Decimal) error
 }
 
 type OutcomeRepositoryImpl struct {
@@ -165,6 +170,43 @@ func (r *OutcomeRepositoryImpl) UpdateResult(ctx context.Context, id int64, resu
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("OutcomeRepository.UpdateResult id=%d: %w", id, domain.ErrNotFound)
+	}
+	return nil
+}
+
+// UpdateLabelAndOdds динамически собирает SET по non-nil аргументам: nil-поля
+// не добавляются в UPDATE. Если оба поля nil — сводится к проверке существования
+// исхода (чтобы пустой PATCH не маскировал 404).
+func (r *OutcomeRepositoryImpl) UpdateLabelAndOdds(ctx context.Context, id int64, label *string, odds *decimal.Decimal) error {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	sets := []string{}
+	args := []any{id}
+	if label != nil {
+		args = append(args, *label)
+		sets = append(sets, fmt.Sprintf("label = $%d", len(args)))
+	}
+	if odds != nil {
+		args = append(args, *odds)
+		sets = append(sets, fmt.Sprintf("odds = $%d", len(args)))
+	}
+	if len(sets) == 0 {
+		const checkSQL = `SELECT 1 FROM outcomes WHERE id = $1`
+		var one int
+		if err := q.QueryRow(ctx, checkSQL, id).Scan(&one); err != nil {
+			return fmt.Errorf("OutcomeRepository.UpdateLabelAndOdds id=%d: %w", id, mapErr(err))
+		}
+		return nil
+	}
+
+	sql := fmt.Sprintf(`UPDATE outcomes SET %s WHERE id = $1`, strings.Join(sets, ", "))
+
+	tag, err := q.Exec(ctx, sql, args...)
+	if err != nil {
+		return fmt.Errorf("OutcomeRepository.UpdateLabelAndOdds id=%d: %w", id, mapErr(err))
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("OutcomeRepository.UpdateLabelAndOdds id=%d: %w", id, domain.ErrNotFound)
 	}
 	return nil
 }

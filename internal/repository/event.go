@@ -32,6 +32,15 @@ type EventRepository interface {
 	// возвращает его id. Предназначен для oddsapi-событий (external_id NOT NULL);
 	// существующее событие сохраняет уже накопленный scores, если новый пуст.
 	Upsert(ctx context.Context, e domain.Event) (int64, error)
+	// Create вставляет новое событие без проверки на конфликт и возвращает его id.
+	// Предназначен для кастомных событий (source='custom', external_id = NULL):
+	// для них нет естественного внешнего ключа уникальности, как у oddsapi-событий.
+	Create(ctx context.Context, e domain.Event) (int64, error)
+	// UpdateDetails правит title и/или starts_at кастомного события. nil-поля
+	// оставляют текущее значение. Возвращает domain.ErrNotFound, если события нет.
+	// Применяется только к custom-событиям (source='custom', status='upcoming'),
+	// но эту проверку делает сервис, а не репозиторий.
+	UpdateDetails(ctx context.Context, id int64, title *string, startsAt *time.Time) error
 	// GetByID возвращает событие по внутреннему id (domain.ErrNotFound, если нет).
 	GetByID(ctx context.Context, id int64) (domain.Event, error)
 	// ListWithFilters возвращает страницу ленты событий (старт раньше — первым).
@@ -101,6 +110,66 @@ func (r *EventRepositoryImpl) Upsert(ctx context.Context, e domain.Event) (int64
 		return 0, fmt.Errorf("EventRepository.Upsert source=%s external_id=%v: %w", e.Source, e.ExternalID, mapErr(err))
 	}
 	return id, nil
+}
+
+// Create — простой INSERT без ON CONFLICT, для кастомных событий. Статус по
+// умолчанию upcoming (DEFAULT в схеме), но сервис передаёт его явно.
+func (r *EventRepositoryImpl) Create(ctx context.Context, e domain.Event) (int64, error) {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	const sql = `
+		INSERT INTO events (source, external_id, sport_slug, league_name, title,
+		                    home, away, starts_at, status, scores, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id`
+
+	var id int64
+	err := q.QueryRow(ctx, sql,
+		e.Source, e.ExternalID, e.SportSlug, e.LeagueName, e.Title,
+		e.Home, e.Away, e.StartsAt, e.Status, e.Scores, e.CreatedBy,
+	).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("EventRepository.Create source=%s: %w", e.Source, mapErr(err))
+	}
+	return id, nil
+}
+
+// UpdateDetails динамически собирает SET по non-nil аргументам: nil-поля не
+// добавляются в UPDATE, оставляя текущее значение. Удобно для PATCH, где клиент
+// присылает только изменяемые поля.
+func (r *EventRepositoryImpl) UpdateDetails(ctx context.Context, id int64, title *string, startsAt *time.Time) error {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	sets := []string{}
+	args := []any{id}
+	if title != nil {
+		args = append(args, *title)
+		sets = append(sets, fmt.Sprintf("title = $%d", len(args)))
+	}
+	if startsAt != nil {
+		args = append(args, *startsAt)
+		sets = append(sets, fmt.Sprintf("starts_at = $%d", len(args)))
+	}
+	if len(sets) == 0 {
+		// Нечего обновлять — но событие должно существовать, проверим это.
+		const checkSQL = `SELECT 1 FROM events WHERE id = $1`
+		var one int
+		if err := q.QueryRow(ctx, checkSQL, id).Scan(&one); err != nil {
+			return fmt.Errorf("EventRepository.UpdateDetails id=%d: %w", id, mapErr(err))
+		}
+		return nil
+	}
+
+	sql := fmt.Sprintf(`UPDATE events SET %s WHERE id = $1`, strings.Join(sets, ", "))
+
+	tag, err := q.Exec(ctx, sql, args...)
+	if err != nil {
+		return fmt.Errorf("EventRepository.UpdateDetails id=%d: %w", id, mapErr(err))
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("EventRepository.UpdateDetails id=%d: %w", id, domain.ErrNotFound)
+	}
+	return nil
 }
 
 func (r *EventRepositoryImpl) GetByID(ctx context.Context, id int64) (domain.Event, error) {
