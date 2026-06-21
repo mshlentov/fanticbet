@@ -205,8 +205,8 @@
 - [x] 🟢 `GET /leaderboard?period=&metric=&page=`
 
 ### Фронтенд
-- [ ] 🟡 Страница `/users/:id` — статистика + история ставок
-- [ ] 🟡 Страница `/leaderboard` — таблица с фильтрами period/metric
+- [x] 🟡 Страница `/users/:id` — статистика + история ставок
+- [x] 🟡 Страница `/leaderboard` — таблица с фильтрами period/metric
 
 ---
 
