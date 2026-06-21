@@ -480,6 +480,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/leaderboard": {
+            "get": {
+                "description": "Топ прогнозистов по прибыли или ROI за период. Результат кэшируется на 60 секунд.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leaderboard"
+                ],
+                "summary": "Лидерборд",
+                "parameters": [
+                    {
+                        "enum": [
+                            "week",
+                            "month",
+                            "all"
+                        ],
+                        "type": "string",
+                        "default": "all",
+                        "description": "Период",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "profit",
+                            "roi"
+                        ],
+                        "type": "string",
+                        "default": "profit",
+                        "description": "Метрика сортировки",
+                        "name": "metric",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Номер страницы (с 1)",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.leaderboardResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/me": {
             "get": {
                 "security": [
@@ -707,6 +771,113 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/{id}": {
+            "get": {
+                "description": "Профиль пользователя и агрегированная статистика по ставкам (всего, winrate, profit, ROI).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Публичный профиль",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID пользователя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.publicProfileDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}/bets": {
+            "get": {
+                "description": "Страница ставок пользователя (новые — первыми), размер страницы 50. Фильтр по статусу опционален.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Ставки пользователя",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID пользователя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "pending",
+                            "won",
+                            "lost",
+                            "void"
+                        ],
+                        "type": "string",
+                        "description": "Фильтр по статусу",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Номер страницы (с 1)",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.userBetsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -829,6 +1000,49 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.leaderboardResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.leaderboardRowDTO"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.leaderboardRowDTO": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "profit": {
+                    "type": "integer"
+                },
+                "roi": {
+                    "type": "number"
+                },
+                "staked": {
+                    "type": "integer"
+                },
+                "total_bets": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "won_bets": {
+                    "type": "integer"
+                }
+            }
+        },
         "handler.loginRequest": {
             "type": "object",
             "required": [
@@ -926,6 +1140,26 @@ const docTemplate = `{
                 },
                 "bet": {
                     "$ref": "#/definitions/handler.betDTO"
+                }
+            }
+        },
+        "handler.publicProfileDTO": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "stats": {
+                    "$ref": "#/definitions/handler.userStatsDTO"
                 }
             }
         },
@@ -1034,6 +1268,20 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.userBetsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.betDTO"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                }
+            }
+        },
         "handler.userDTO": {
             "type": "object",
             "properties": {
@@ -1057,6 +1305,38 @@ const docTemplate = `{
                 },
                 "role": {
                     "type": "string"
+                }
+            }
+        },
+        "handler.userStatsDTO": {
+            "type": "object",
+            "properties": {
+                "lost_bets": {
+                    "type": "integer"
+                },
+                "pending_bets": {
+                    "type": "integer"
+                },
+                "profit": {
+                    "type": "integer"
+                },
+                "roi": {
+                    "type": "number"
+                },
+                "staked": {
+                    "type": "integer"
+                },
+                "total_bets": {
+                    "type": "integer"
+                },
+                "void_bets": {
+                    "type": "integer"
+                },
+                "win_rate": {
+                    "type": "number"
+                },
+                "won_bets": {
+                    "type": "integer"
                 }
             }
         }

@@ -78,6 +78,34 @@ definitions:
       page:
         type: integer
     type: object
+  handler.leaderboardResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.leaderboardRowDTO'
+        type: array
+      page:
+        type: integer
+    type: object
+  handler.leaderboardRowDTO:
+    properties:
+      avatar_url:
+        type: string
+      display_name:
+        type: string
+      profit:
+        type: integer
+      roi:
+        type: number
+      staked:
+        type: integer
+      total_bets:
+        type: integer
+      user_id:
+        type: integer
+      won_bets:
+        type: integer
+    type: object
   handler.loginRequest:
     properties:
       email:
@@ -143,6 +171,19 @@ definitions:
         type: integer
       bet:
         $ref: '#/definitions/handler.betDTO'
+    type: object
+  handler.publicProfileDTO:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      stats:
+        $ref: '#/definitions/handler.userStatsDTO'
     type: object
   handler.refreshRequest:
     properties:
@@ -214,6 +255,15 @@ definitions:
         minLength: 2
         type: string
     type: object
+  handler.userBetsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.betDTO'
+        type: array
+      page:
+        type: integer
+    type: object
   handler.userDTO:
     properties:
       avatar_url:
@@ -230,6 +280,27 @@ definitions:
         type: string
       role:
         type: string
+    type: object
+  handler.userStatsDTO:
+    properties:
+      lost_bets:
+        type: integer
+      pending_bets:
+        type: integer
+      profit:
+        type: integer
+      roi:
+        type: number
+      staked:
+        type: integer
+      total_bets:
+        type: integer
+      void_bets:
+        type: integer
+      win_rate:
+        type: number
+      won_bets:
+        type: integer
     type: object
 info:
   contact: {}
@@ -551,6 +622,51 @@ paths:
       summary: Событие
       tags:
       - events
+  /leaderboard:
+    get:
+      description: Топ прогнозистов по прибыли или ROI за период. Результат кэшируется
+        на 60 секунд.
+      parameters:
+      - default: all
+        description: Период
+        enum:
+        - week
+        - month
+        - all
+        in: query
+        name: period
+        type: string
+      - default: profit
+        description: Метрика сортировки
+        enum:
+        - profit
+        - roi
+        in: query
+        name: metric
+        type: string
+      - default: 1
+        description: Номер страницы (с 1)
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.leaderboardResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Лидерборд
+      tags:
+      - leaderboard
   /me:
     get:
       description: Возвращает профиль текущего пользователя и баланс кошелька.
@@ -701,6 +817,80 @@ paths:
       summary: Виды спорта
       tags:
       - events
+  /users/{id}:
+    get:
+      description: Профиль пользователя и агрегированная статистика по ставкам (всего,
+        winrate, profit, ROI).
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.publicProfileDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Публичный профиль
+      tags:
+      - users
+  /users/{id}/bets:
+    get:
+      description: Страница ставок пользователя (новые — первыми), размер страницы
+        50. Фильтр по статусу опционален.
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Фильтр по статусу
+        enum:
+        - pending
+        - won
+        - lost
+        - void
+        in: query
+        name: status
+        type: string
+      - default: 1
+        description: Номер страницы (с 1)
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.userBetsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Ставки пользователя
+      tags:
+      - users
 securityDefinitions:
   BearerAuth:
     description: 'Введите access-токен в формате: Bearer <access_token>'

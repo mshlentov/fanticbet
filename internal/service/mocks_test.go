@@ -201,3 +201,27 @@ func (m *fakeBetRepo) UpdateStatusSettled(ctx context.Context, id int64, status 
 	}
 	return nil
 }
+
+// --- StatsRepository mock ---
+
+// fakeStatsRepo — фейк аналитического репозитория. getUserStatsCalls и
+// getLeaderboardCalls считают обращения к репозиторию: это позволяет тестам
+// in-memory кэша StatsService проверять, что cache hit не доходит до БД.
+type fakeStatsRepo struct {
+	getUserStatsFn      func(ctx context.Context, userID int64) (domain.UserStats, error)
+	getLeaderboardFn    func(ctx context.Context, f domain.LeaderboardFilter) ([]domain.LeaderboardRow, error)
+	getUserStatsCalls   int
+	getLeaderboardCalls int
+	lastFilter          domain.LeaderboardFilter
+}
+
+func (m *fakeStatsRepo) GetUserStats(ctx context.Context, userID int64) (domain.UserStats, error) {
+	m.getUserStatsCalls++
+	return m.getUserStatsFn(ctx, userID)
+}
+
+func (m *fakeStatsRepo) GetLeaderboard(ctx context.Context, f domain.LeaderboardFilter) ([]domain.LeaderboardRow, error) {
+	m.getLeaderboardCalls++
+	m.lastFilter = f
+	return m.getLeaderboardFn(ctx, f)
+}

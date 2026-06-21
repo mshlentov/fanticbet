@@ -61,6 +61,11 @@ type Config struct {
 	SignupBonus int64
 	BetMin      int64
 	BetMax      int64
+
+	// LeaderboardMinBets — минимальное число рассчитанных ставок (won+lost) для
+	// попадания пользователя в лидерборд. Открытый вопрос из tasks.md:264 —
+	// вынесен в конфиг, чтобы подобрать по накоплению данных. По умолчанию 10.
+	LeaderboardMinBets int
 }
 
 func Load() (*Config, error) {
@@ -107,6 +112,8 @@ func Load() (*Config, error) {
 		SignupBonus: getEnvInt64("SIGNUP_BONUS", 10000),
 		BetMin:      getEnvInt64("BET_MIN", 10),
 		BetMax:      getEnvInt64("BET_MAX", 10000),
+
+		LeaderboardMinBets: getEnvInt("LEADERBOARD_MIN_BETS", 10),
 	}
 
 	if cfg.JWTSecret == "" {
