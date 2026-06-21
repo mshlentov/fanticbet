@@ -115,3 +115,54 @@ export type TransactionsPage = {
   page: number;
   items: WalletTransaction[];
 };
+
+// --- Социальная часть (M5): профиль со статистикой и лидерборд ---
+
+// UserStats — агрегированная статистика по ставкам. Счётчики и суммы — целые;
+// win_rate/roi — доли (0..1; roi может быть > 1 при прибыли больше оборота).
+export type UserStats = {
+  total_bets: number;
+  won_bets: number;
+  lost_bets: number;
+  void_bets: number;
+  pending_bets: number;
+  staked: number;
+  profit: number;
+  win_rate: number;
+  roi: number;
+};
+
+// PublicProfile — ответ GET /users/:id: публичные поля + статистика.
+export type PublicProfile = {
+  id: number;
+  display_name: string;
+  avatar_url: string | null;
+  created_at: string;
+  stats: UserStats;
+};
+
+// Ответ GET /users/:id/bets — страница публичной истории ставок.
+export type UserBetsPage = {
+  page: number;
+  items: Bet[];
+};
+
+export type LeaderboardPeriod = "week" | "month" | "all";
+export type LeaderboardMetric = "profit" | "roi";
+
+// LeaderboardRow — строка таблицы лидеров: публичное имя/аватар + метрики.
+export type LeaderboardRow = {
+  user_id: number;
+  display_name: string;
+  avatar_url: string | null;
+  total_bets: number;
+  won_bets: number;
+  staked: number;
+  profit: number;
+  roi: number;
+};
+
+export type LeaderboardPage = {
+  page: number;
+  items: LeaderboardRow[];
+};

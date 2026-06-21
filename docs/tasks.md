@@ -197,16 +197,16 @@
 ## M5. Социальная часть
 
 ### Бэкенд
-- [ ] 🟡 SQL-агрегат статистики пользователя: всего ставок, winrate, profit (Σpayout−Σstake), ROI
-- [ ] 🟢 `GET /users/:id` (публичный профиль + статистика)
-- [ ] 🟢 `GET /users/:id/bets?status=&page=` (публичная история)
-- [ ] 🔴 SQL-запрос лидерборда: period (week/month/all) × metric (profit/roi), пагинация; решить вопрос мин. порога числа ставок (напр. ≥10)
-- [ ] 🟡 In-memory кэш лидерборда (TTL ~60 сек) с ключом по period+metric
-- [ ] 🟢 `GET /leaderboard?period=&metric=&page=`
+- [x] 🟡 SQL-агрегат статистики пользователя: всего ставок, winrate, profit (Σpayout−Σstake), ROI
+- [x] 🟢 `GET /users/:id` (публичный профиль + статистика)
+- [x] 🟢 `GET /users/:id/bets?status=&page=` (публичная история)
+- [x] 🔴 SQL-запрос лидерборда: period (week/month/all) × metric (profit/roi), пагинация; решить вопрос мин. порога числа ставок (напр. ≥10)
+- [x] 🟡 In-memory кэш лидерборда (TTL ~60 сек) с ключом по period+metric
+- [x] 🟢 `GET /leaderboard?period=&metric=&page=`
 
 ### Фронтенд
-- [ ] 🟡 Страница `/users/:id` — статистика + история ставок
-- [ ] 🟡 Страница `/leaderboard` — таблица с фильтрами period/metric
+- [x] 🟡 Страница `/users/:id` — статистика + история ставок
+- [x] 🟡 Страница `/leaderboard` — таблица с фильтрами period/metric
 
 ---
 

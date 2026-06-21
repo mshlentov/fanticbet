@@ -88,6 +88,10 @@ func main() {
 	// хендлером): тот же набор репозиториев, что у BettingService, плюс tx-менеджер.
 	settlementSvc := service.NewSettlementService(txMgr, eventRepo, marketRepo, outcomeRepo, betRepo, walletRepo, walletTxRepo, nil)
 	oauthSvc := service.NewOAuthService(txMgr, userRepo, walletRepo, walletTxRepo, authIdentityRepo, refreshRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
+	// StatsService — социальная часть (M5): публичный профиль со статистикой,
+	// история ставок и лидерборд с in-memory кэшем. Порог числа ставок для
+	// попадания в топ берётся из конфига LEADERBOARD_MIN_BETS.
+	statsSvc := service.NewStatsService(userRepo, betRepo, repository.NewStatsRepository(pool), cfg.LeaderboardMinBets)
 
 	yandexCfg, vkCfg := handler.NewOAuthConfigs(
 		cfg.YandexClientID, cfg.YandexClientSecret, cfg.YandexRedirectURI,
@@ -99,6 +103,7 @@ func main() {
 	eventH := handler.NewEventHandler(eventSvc)
 	betH := handler.NewBetHandler(bettingSvc)
 	oauthH := handler.NewOAuthHandler(oauthSvc, yandexCfg, vkCfg, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
+	statsH := handler.NewStatsHandler(statsSvc)
 
 	// Setup router
 	if os.Getenv("GIN_MODE") == "" {
@@ -146,6 +151,12 @@ func main() {
 		v1.GET("/sports", eventH.Sports)
 		v1.GET("/events", eventH.List)
 		v1.GET("/events/:id", eventH.Get)
+
+		// Социальная часть (публичная, без авторизации): профиль со статистикой,
+		// история ставок любого пользователя и лидерборд (architecture.md:197).
+		v1.GET("/users/:id", statsH.GetUser)
+		v1.GET("/users/:id/bets", statsH.UserBets)
+		v1.GET("/leaderboard", statsH.Leaderboard)
 
 		// Размещение ставки (требует авторизации). Отдельный маршрут, а не под
 		// /me, т.к. это действие над событием, а не над профилем.
