@@ -106,7 +106,7 @@ func main() {
 	userH := handler.NewUserHandler(userSvc)
 	eventH := handler.NewEventHandler(eventSvc)
 	betH := handler.NewBetHandler(bettingSvc)
-	oauthH := handler.NewOAuthHandler(oauthSvc, yandexCfg, vkCfg, cfg.CookieSecure, cfg.CookieDomain, accessTTL, refreshTTL)
+	oauthH := handler.NewOAuthHandler(oauthSvc, yandexCfg, vkCfg, cfg.CookieSecure, cfg.CookieDomain, cfg.FrontendURL, accessTTL, refreshTTL)
 	statsH := handler.NewStatsHandler(statsSvc)
 	adminH := handler.NewAdminHandler(adminSvc)
 

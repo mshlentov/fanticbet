@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -71,6 +72,7 @@ type OAuthHandler struct {
 	vk           *oauth2.Config
 	cookieSecure bool
 	cookieDomain string
+	frontendURL  string
 	accessTTL    time.Duration
 	refreshTTL   time.Duration
 }
@@ -81,6 +83,7 @@ func NewOAuthHandler(
 	vk *oauth2.Config,
 	cookieSecure bool,
 	cookieDomain string,
+	frontendURL string,
 	accessTTL, refreshTTL time.Duration,
 ) *OAuthHandler {
 	return &OAuthHandler{
@@ -89,6 +92,7 @@ func NewOAuthHandler(
 		vk:           vk,
 		cookieSecure: cookieSecure,
 		cookieDomain: cookieDomain,
+		frontendURL:  frontendURL,
 		accessTTL:    accessTTL,
 		refreshTTL:   refreshTTL,
 	}
@@ -124,16 +128,20 @@ func (h *OAuthHandler) Login(c *gin.Context) {
 // Callback — обработка кода от провайдера. Проверяет CSRF-state, обменивает code
 // на token провайдера, получает профиль пользователя, вызывает LoginOrRegister.
 //
+// Эндпоинт вызывается браузером (top-level navigation), поэтому отвечает не JSON,
+// а 302-редиректом обратно в SPA. При успехе ставит refresh-cookie и ведёт на "/":
+// SPA на старте сделает silent-refresh по этой cookie и получит access-токен.
+// Access-токен в URL не передаём — чтобы не утёк в историю/логи/Referer. Ошибки
+// ведут на /login?error=<код>, где SPA показывает понятное сообщение.
+//
 // @Summary      OAuth — callback от провайдера
-// @Description  Вызывается провайдером после авторизации. Возвращает access-токен и устанавливает refresh-cookie. Swagger "Try it out" здесь не работает — эндпоинт вызывается браузером, а не напрямую.
+// @Description  Вызывается провайдером после авторизации. Ставит refresh-cookie и редиректит браузер в SPA (302). Swagger "Try it out" здесь не работает — эндпоинт вызывается браузером, а не напрямую.
 // @Tags         auth
 // @Param        provider  path   string  true  "Провайдер: yandex или vk"
 // @Param        code      query  string  true  "Код авторизации от провайдера"
 // @Param        state     query  string  true  "CSRF-state (должен совпасть с cookie)"
-// @Success      200  {object}  tokenResponse
-// @Failure      400  {object}  errorResponse
-// @Failure      401  {object}  errorResponse
-// @Failure      500  {object}  errorResponse
+// @Success      302
+// @Failure      302
 // @Router       /auth/{provider}/callback [get]
 func (h *OAuthHandler) Callback(c *gin.Context) {
 	cfg, ok := h.providerConfig(c)
@@ -143,20 +151,20 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 
 	// Провайдер вернул ошибку (пользователь отказал в доступе и т.п.).
 	if errParam := c.Query("error"); errParam != "" {
-		respondError(c, http.StatusUnauthorized, "unauthorized", "Авторизация отменена пользователем")
+		h.redirectError(c, "oauth_cancelled")
 		return
 	}
 
 	// Проверка CSRF-state: сравниваем query-параметр с cookie.
 	if !h.verifyState(c) {
-		respondError(c, http.StatusUnauthorized, "unauthorized", "Неверный state, попробуйте снова")
+		h.redirectError(c, "invalid_state")
 		return
 	}
 	h.clearStateCookie(c)
 
 	code := c.Query("code")
 	if code == "" {
-		respondError(c, http.StatusBadRequest, "validation_error", "Отсутствует код авторизации")
+		h.redirectError(c, "missing_code")
 		return
 	}
 
@@ -164,7 +172,7 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 	token, err := cfg.Exchange(c.Request.Context(), code)
 	if err != nil {
 		log.Printf("OAuthHandler.Callback: exchange code provider=%s: %v", c.Param("provider"), err)
-		respondError(c, http.StatusUnauthorized, "unauthorized", "Не удалось обменять код авторизации")
+		h.redirectError(c, "provider_error")
 		return
 	}
 
@@ -183,25 +191,20 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 	}
 	if err != nil {
 		log.Printf("OAuthHandler.Callback: fetch user provider=%s: %v", provider, err)
-		respondError(c, http.StatusUnauthorized, "unauthorized", "Не удалось получить данные пользователя от провайдера")
+		h.redirectError(c, "provider_error")
 		return
 	}
 
 	// Три сценария (логин / привязка / регистрация) — в сервисе.
 	tokens, err := h.oauth.LoginOrRegister(c.Request.Context(), domainProvider, info)
 	if err != nil {
-		if !mapDomainErr(c, err) {
-			respondInternalError(c)
-		}
+		log.Printf("OAuthHandler.Callback: login or register provider=%s: %v", provider, err)
+		h.redirectError(c, "login_failed")
 		return
 	}
 
 	h.setRefreshCookie(c, tokens.RefreshToken)
-	respondJSON(c, http.StatusOK, tokenResponse{
-		AccessToken: tokens.AccessToken,
-		TokenType:   "bearer",
-		ExpiresIn:   int(h.accessTTL.Seconds()),
-	})
+	c.Redirect(http.StatusFound, h.frontendURL+"/")
 }
 
 // --- Провайдер-специфичные функции получения профиля ---
@@ -336,6 +339,13 @@ func (h *OAuthHandler) providerConfig(c *gin.Context) (*oauth2.Config, bool) {
 		respondError(c, http.StatusBadRequest, "validation_error", "Неизвестный провайдер. Допустимые значения: yandex, vk")
 		return nil, false
 	}
+}
+
+// redirectError возвращает браузер на страницу логина SPA с машинным кодом
+// ошибки в query (?error=<code>). Сообщение для пользователя подбирает фронт —
+// так текст остаётся в одном месте и легко локализуется.
+func (h *OAuthHandler) redirectError(c *gin.Context, code string) {
+	c.Redirect(http.StatusFound, h.frontendURL+"/login?error="+url.QueryEscape(code))
 }
 
 // generateState генерирует случайную hex-строку для CSRF-защиты.

@@ -29,6 +29,12 @@ type Config struct {
 	// CORS: список разрешённых origin'ов (фронты). В dev — Vite на :5173.
 	CORSAllowedOrigins []string
 
+	// FrontendURL — база для редиректов после OAuth-callback (успех → "/",
+	// ошибка → "/login?error=..."). Пусто = относительный путь: работает при
+	// single-origin (dev — через Vite-proxy, prod — через nginx). Заполняется,
+	// только если SPA живёт на отдельном origin.
+	FrontendURL string
+
 	OddsAPIKey string
 	Bookmaker  string
 	Sports     []string
@@ -88,6 +94,8 @@ func Load() (*Config, error) {
 
 		CORSAllowedOrigins: splitCSV(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173")),
 
+		FrontendURL: strings.TrimRight(getEnv("FRONTEND_URL", ""), "/"),
+
 		OddsAPIKey: getEnv("ODDS_API_KEY", ""),
 		Bookmaker:  getEnv("BOOKMAKER", "1xbet"),
 		Sports:     splitCSV(getEnv("SPORTS", "football,basketball")),
@@ -103,11 +111,11 @@ func Load() (*Config, error) {
 
 		YandexClientID:     getEnv("YANDEX_CLIENT_ID", ""),
 		YandexClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
-		YandexRedirectURI:  getEnv("YANDEX_REDIRECT_URI", "http://localhost:8080/api/v1/auth/yandex/callback"),
+		YandexRedirectURI:  getEnv("YANDEX_REDIRECT_URI", "http://localhost:5173/api/v1/auth/yandex/callback"),
 
 		VKClientID:     getEnv("VK_CLIENT_ID", ""),
 		VKClientSecret: getEnv("VK_CLIENT_SECRET", ""),
-		VKRedirectURI:  getEnv("VK_REDIRECT_URI", "http://localhost:8080/api/v1/auth/vk/callback"),
+		VKRedirectURI:  getEnv("VK_REDIRECT_URI", "http://localhost:5173/api/v1/auth/vk/callback"),
 
 		SignupBonus: getEnvInt64("SIGNUP_BONUS", 10000),
 		BetMin:      getEnvInt64("BET_MIN", 10),
