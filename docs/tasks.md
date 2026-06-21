@@ -213,17 +213,17 @@
 ## M6. Кастомные события и админка
 
 ### Бэкенд
-- [ ] 🟡 `AdminService.CreateCustomEvent` (event source='custom' + market CUSTOM + outcomes из запроса)
-- [ ] 🟢 `POST /admin/events` (`{title, starts_at, market:{question, outcomes:[{label,odds}]}}`)
-- [ ] 🟡 `AdminService.EditEvent` / `CancelEvent` (cancel → void всех ставок с возвратом)
-- [ ] 🟢 `PATCH /admin/events/:id`
-- [ ] 🟡 `AdminService.SettleCustom` (`{winning_outcome_id}` → расчёт ставок как won/lost)
-- [ ] 🟢 `POST /admin/events/:id/settle`
-- [ ] 🟡 `AdminService.AdjustBalance` (`{amount, reason}` + tx `admin_adjust`, в транзакции с FOR UPDATE)
-- [ ] 🟢 `POST /admin/users/:id/adjust`
+- [x] 🟡 `AdminService.CreateCustomEvent` (event source='custom' + market CUSTOM + outcomes из запроса)
+- [x] 🟢 `POST /admin/events` (`{title, starts_at, market:{question, outcomes:[{label,odds}]}}`)
+- [x] 🟡 `AdminService.EditEvent` / `CancelEvent` (cancel → void всех ставок с возвратом)
+- [x] 🟢 `PATCH /admin/events/:id`
+- [x] 🟡 `AdminService.SettleCustom` (`{winning_outcome_id}` → расчёт ставок как won/lost)
+- [x] 🟢 `POST /admin/events/:id/settle`
+- [x] 🟡 `AdminService.AdjustBalance` (`{amount, reason}` + tx `admin_adjust`, в транзакции с FOR UPDATE)
+- [x] 🟢 `POST /admin/users/:id/adjust`
 
 ### Фронтенд
-- [ ] 🟡 Страница `/admin`: список кастомных событий, форма создания, кнопка settle/cancel, форма adjust
+- [x] 🟡 Страница `/admin`: список кастомных событий, форма создания, кнопка settle/cancel, форма adjust
 
 ---
 

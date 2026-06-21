@@ -59,6 +59,8 @@ func (f *fakeMarketRepo) UpdateLine(_ context.Context, id int64, line *decimal.D
 	f.lineUpdates[id] = line
 	return nil
 }
+// UpdateQuestion — заглушка для M6: OddsSyncWorker этот метод не использует.
+func (f *fakeMarketRepo) UpdateQuestion(context.Context, int64, *string) error { return nil }
 
 type fakeOutcomeRepo struct {
 	upserts []domain.Outcome
@@ -79,6 +81,10 @@ func (f *fakeOutcomeRepo) GetByMarkets(context.Context, []int64) ([]domain.Outco
 }
 func (f *fakeOutcomeRepo) UpdateOdds(context.Context, int64, decimal.Decimal) error { return nil }
 func (f *fakeOutcomeRepo) UpdateResult(context.Context, int64, domain.Result) error { return nil }
+// UpdateLabelAndOdds — заглушка для M6: OddsSyncWorker этот метод не использует.
+func (f *fakeOutcomeRepo) UpdateLabelAndOdds(context.Context, int64, *string, *decimal.Decimal) error {
+	return nil
+}
 
 func (f *fakeOutcomeRepo) byCode(code domain.OutcomeCode) (domain.Outcome, bool) {
 	for _, o := range f.upserts {

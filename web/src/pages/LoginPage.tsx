@@ -8,6 +8,15 @@ import { oauthLoginUrl } from "../api/auth";
 
 type LocationState = { from?: string } | null;
 
+// Сообщения для кодов ошибок OAuth-callback (бэкенд редиректит сюда с ?error=).
+const OAUTH_ERRORS: Record<string, string> = {
+  oauth_cancelled: "Вход через провайдера отменён",
+  invalid_state: "Сессия входа устарела, попробуйте снова",
+  missing_code: "Провайдер не вернул код авторизации",
+  provider_error: "Не удалось получить данные от провайдера",
+  login_failed: "Не удалось войти, попробуйте снова",
+};
+
 // LoginPage — вход по email+паролю + OAuth (Яндекс/VK). После успеха возвращает
 // на исходный путь (если приходили из ProtectedRoute) или на /.
 export function LoginPage() {
@@ -16,9 +25,14 @@ export function LoginPage() {
   const location = useLocation();
   const from = (location.state as LocationState)?.from ?? "/";
 
+  // Ошибка OAuth-callback приходит в query (?error=<код>) — показываем при загрузке.
+  const oauthError = new URLSearchParams(location.search).get("error");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    oauthError ? (OAUTH_ERRORS[oauthError] ?? "Не удалось войти, попробуйте снова") : null,
+  );
   const [submitting, setSubmitting] = useState(false);
 
   if (status === "authenticated") return <Navigate to="/" replace />;

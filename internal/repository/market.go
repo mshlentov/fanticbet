@@ -32,6 +32,9 @@ type MarketRepository interface {
 	// OddsSyncWorker). line=nil сбрасывает линию в NULL. Возвращает
 	// domain.ErrNotFound, если рынка с таким id нет.
 	UpdateLine(ctx context.Context, id int64, line *decimal.Decimal) error
+	// UpdateQuestion правит текст вопроса CUSTOM-рынка. question=nil — оставить
+	// текущее значение (пустой PATCH). Возвращает domain.ErrNotFound, если рынка нет.
+	UpdateQuestion(ctx context.Context, id int64, question *string) error
 }
 
 type MarketRepositoryImpl struct {
@@ -161,6 +164,33 @@ func (r *MarketRepositoryImpl) UpdateLine(ctx context.Context, id int64, line *d
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("MarketRepository.UpdateLine id=%d: %w", id, domain.ErrNotFound)
+	}
+	return nil
+}
+
+// UpdateQuestion — правка текста вопроса CUSTOM-рынка. question=nil означает
+// «оставить как есть»: метод сводится к проверке существования рынка без UPDATE.
+func (r *MarketRepositoryImpl) UpdateQuestion(ctx context.Context, id int64, question *string) error {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	if question == nil {
+		// Нечего обновлять — но рынок должен существовать, иначе это неявный 404.
+		const checkSQL = `SELECT 1 FROM markets WHERE id = $1`
+		var one int
+		if err := q.QueryRow(ctx, checkSQL, id).Scan(&one); err != nil {
+			return fmt.Errorf("MarketRepository.UpdateQuestion id=%d: %w", id, mapErr(err))
+		}
+		return nil
+	}
+
+	const sql = `UPDATE markets SET question = $2 WHERE id = $1`
+
+	tag, err := q.Exec(ctx, sql, id, *question)
+	if err != nil {
+		return fmt.Errorf("MarketRepository.UpdateQuestion id=%d: %w", id, mapErr(err))
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("MarketRepository.UpdateQuestion id=%d: %w", id, domain.ErrNotFound)
 	}
 	return nil
 }

@@ -101,6 +101,84 @@ func (s *SettlementService) SettleEvent(ctx context.Context, eventID int64, fina
 	return nil
 }
 
+// SettleCustomEvent рассчитывает кастомное событие по выбранному админом
+// победившему исходу (без scores — для custom его нет). Это ручной расчёт:
+// админ вызывает POST /admin/events/:id/settle c winning_outcome_id.
+//
+// Логика по каждому рынку события:
+//   - если winningOutcomeID входит в исходы рынка — этот исход won, прочие того
+//     же рынка lost, рынок → settled;
+//   - если выигрышного исхода в рынке нет — весь рынок → void (безопасный
+//     fallback: ставки возвращаются). На практике у custom-события один рынок,
+//     поэтому этот случай наступает только при ошибке админа (не тот id).
+//
+// Итоговый статус события — settled. Идемпотентность та же, что у SettleEvent:
+// applyPlan обрабатывает только pending-ставки, повторный прогон безопасен.
+func (s *SettlementService) SettleCustomEvent(ctx context.Context, eventID, winningOutcomeID int64) error {
+	plan, err := s.buildCustomPlan(ctx, eventID, winningOutcomeID)
+	if err != nil {
+		return fmt.Errorf("SettlementService.SettleCustomEvent event_id=%d: %w", eventID, err)
+	}
+
+	err = s.tx.RunInTx(ctx, func(ctx context.Context) error {
+		// scores для custom не нужен — передаём nil, applyPlan сохранит NULL.
+		return s.applyPlan(ctx, eventID, nil, plan)
+	})
+	if err != nil {
+		return fmt.Errorf("SettlementService.SettleCustomEvent event_id=%d: %w", eventID, err)
+	}
+	return nil
+}
+
+// buildCustomPlan готовит settlementPlan по winningOutcomeID (аналог buildPlan,
+// но без scores — победитель задаётся явно админом, а не выводится из счёта).
+func (s *SettlementService) buildCustomPlan(ctx context.Context, eventID, winningOutcomeID int64) (settlementPlan, error) {
+	plan := settlementPlan{finalStatus: domain.EventSettled}
+
+	dbMarkets, err := s.markets.GetByEvent(ctx, eventID)
+	if err != nil {
+		return settlementPlan{}, fmt.Errorf("load markets: %w", err)
+	}
+
+	for _, m := range dbMarkets {
+		ocs, err := s.outcomes.GetByMarket(ctx, m.ID)
+		if err != nil {
+			return settlementPlan{}, fmt.Errorf("load outcomes market_id=%d: %w", m.ID, err)
+		}
+
+		// Есть ли победивший исход в этом рынке?
+		hasWinner := false
+		for _, o := range ocs {
+			if o.ID == winningOutcomeID {
+				hasWinner = true
+				break
+			}
+		}
+
+		mp := marketPlan{marketID: m.ID}
+		if hasWinner {
+			mp.status = domain.MarketSettled
+			for _, o := range ocs {
+				res := domain.ResultLost
+				if o.ID == winningOutcomeID {
+					res = domain.ResultWon
+				}
+				mp.outcomes = append(mp.outcomes, outcomePlan{outcomeID: o.ID, result: res})
+			}
+		} else {
+			// Победителя в этом рынке нет — скорее всего, ошибка в winning_outcome_id.
+			// Возвращаем ставки этого рынка (void), чтобы не наказывать пользователей
+			// за ошибку админа.
+			mp.status = domain.MarketVoid
+			for _, o := range ocs {
+				mp.outcomes = append(mp.outcomes, outcomePlan{outcomeID: o.ID, result: domain.ResultVoid})
+			}
+		}
+		plan.markets = append(plan.markets, mp)
+	}
+	return plan, nil
+}
+
 // buildPlan готовит settlementPlan вне транзакции: загружает рынки/исходы и
 // вычисляет их результаты по scores. Только чтение из БД + чистый анализ.
 func (s *SettlementService) buildPlan(ctx context.Context, eventID int64, finalStatus domain.EventStatus, scores json.RawMessage) (settlementPlan, error) {

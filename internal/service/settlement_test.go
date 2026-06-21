@@ -443,3 +443,164 @@ func sumDeltas(w *fakeWalletRepo, user int64) int64 {
 	}
 	return sum
 }
+
+// --- SettleCustomEvent: ручной расчёт по winning_outcome_id ---
+
+// setupCustomFixture готовит кастомное событие с одним CUSTOM-рынком (id 20) и
+// тремя исходами (opt_1/opt_2/opt_3). Возвращает исходы для сборки ставок.
+func setupCustomFixture(markets *fakeMarketRepo, outcomes *fakeOutcomeRepo) []domain.Outcome {
+	customOutcomes := []domain.Outcome{
+		{ID: 200, MarketID: 20, Code: "opt_1", Odds: decimal.RequireFromString("2.00")},
+		{ID: 201, MarketID: 20, Code: "opt_2", Odds: decimal.RequireFromString("3.00")},
+		{ID: 202, MarketID: 20, Code: "opt_3", Odds: decimal.RequireFromString("4.00")},
+	}
+	if markets.byEvent == nil {
+		markets.byEvent = map[int64][]domain.Market{}
+	}
+	if outcomes.byMarket == nil {
+		outcomes.byMarket = map[int64][]domain.Outcome{}
+	}
+	markets.byEvent[1] = []domain.Market{
+		{ID: 20, EventID: 1, Type: domain.MarketCustom, Status: domain.MarketOpen},
+	}
+	outcomes.byMarket[20] = customOutcomes
+	return customOutcomes
+}
+
+func TestSettlementService_SettleCustomEvent_WonLost(t *testing.T) {
+	svc, _, events, markets, outcomes, bets, wallets, walletTx := newTestSettlement(t)
+	ocs := setupCustomFixture(markets, outcomes)
+
+	// Ставки: на победителя (200), на проигравших (201, 202).
+	pendingBets := []domain.Bet{
+		{ID: 1, UserID: 5, OutcomeID: ocs[0].ID, Stake: 100, PotentialPayout: 200, Status: domain.BetPending}, // won
+		{ID: 2, UserID: 7, OutcomeID: ocs[1].ID, Stake: 50, PotentialPayout: 150, Status: domain.BetPending},  // lost
+		{ID: 3, UserID: 7, OutcomeID: ocs[2].ID, Stake: 30, PotentialPayout: 120, Status: domain.BetPending},  // lost
+	}
+	bets.listPendingFn = func(_ context.Context, _ []int64) ([]domain.Bet, error) {
+		return pendingBets, nil
+	}
+	wallets.getForUpdFn = func(_ context.Context, userID int64) (domain.Wallet, error) {
+		return domain.Wallet{UserID: userID, Balance: 1000}, nil
+	}
+	wallets.updateBalFn = func(_ context.Context, _ int64, d int64) (int64, error) { return d, nil }
+	walletTx.createFn = func(_ context.Context, _ domain.WalletTransaction) (int64, error) { return 1, nil }
+
+	// Победил исход 200.
+	if err := svc.SettleCustomEvent(context.Background(), 1, 200); err != nil {
+		t.Fatalf("SettleCustomEvent: %v", err)
+	}
+
+	// Результаты исходов: 200 → won, 201/202 → lost.
+	if outcomes.resultUpdates[200] != domain.ResultWon {
+		t.Errorf("outcome 200 result = %v, want won", outcomes.resultUpdates[200])
+	}
+	if outcomes.resultUpdates[201] != domain.ResultLost || outcomes.resultUpdates[202] != domain.ResultLost {
+		t.Errorf("losing outcomes = %v/%v, want lost/lost",
+			outcomes.resultUpdates[201], outcomes.resultUpdates[202])
+	}
+
+	// Рынок → settled.
+	if markets.statusUpdates[20] != domain.MarketSettled {
+		t.Errorf("market status = %v, want settled", markets.statusUpdates[20])
+	}
+
+	// Выплата: user 5 → +200 (bet 1 won). user 7 — ничего (оба lost).
+	if sum := sumDeltas(wallets, 5); sum != 200 {
+		t.Errorf("user 5 payout = %d, want 200", sum)
+	}
+	if sum := sumDeltas(wallets, 7); sum != 0 {
+		t.Errorf("user 7 payout = %d, want 0 (both lost)", sum)
+	}
+
+	// Статусы ставок: 1 → won, 2/3 → lost.
+	wantStatuses := map[int64]domain.BetStatus{1: domain.BetWon, 2: domain.BetLost, 3: domain.BetLost}
+	if len(bets.settledCalls) != 3 {
+		t.Fatalf("settledCalls = %d, want 3", len(bets.settledCalls))
+	}
+	for _, c := range bets.settledCalls {
+		if wantStatuses[c.ID] != c.Status {
+			t.Errorf("bet %d status = %q, want %q", c.ID, c.Status, wantStatuses[c.ID])
+		}
+	}
+
+	// Событие → settled, scores = nil (custom не имеет счёта).
+	if len(events.statusScoresCalls) != 1 || events.statusScoresCalls[0].Status != domain.EventSettled {
+		t.Fatalf("event updates = %+v, want 1 settled", events.statusScoresCalls)
+	}
+	if events.statusScoresCalls[0].Scores != nil {
+		t.Errorf("custom event scores = %v, want nil", events.statusScoresCalls[0].Scores)
+	}
+}
+
+func TestSettlementService_SettleCustomEvent_WinnerNotInMarket(t *testing.T) {
+	svc, _, _, markets, outcomes, bets, wallets, walletTx := newTestSettlement(t)
+	ocs := setupCustomFixture(markets, outcomes)
+
+	// Ставка на исход рынка.
+	bets.listPendingFn = func(_ context.Context, _ []int64) ([]domain.Bet, error) {
+		return []domain.Bet{
+			{ID: 1, UserID: 5, OutcomeID: ocs[0].ID, Stake: 100, PotentialPayout: 200, Status: domain.BetPending},
+		}, nil
+	}
+	wallets.getForUpdFn = func(_ context.Context, userID int64) (domain.Wallet, error) {
+		return domain.Wallet{UserID: userID, Balance: 1000}, nil
+	}
+	wallets.updateBalFn = func(_ context.Context, _ int64, d int64) (int64, error) { return d, nil }
+	walletTx.createFn = func(_ context.Context, _ domain.WalletTransaction) (int64, error) { return 1, nil }
+
+	// Победил несуществующий в рынке исход (999) — весь рынок → void, ставка возвращена.
+	if err := svc.SettleCustomEvent(context.Background(), 1, 999); err != nil {
+		t.Fatalf("SettleCustomEvent: %v", err)
+	}
+
+	for _, id := range []int64{200, 201, 202} {
+		if outcomes.resultUpdates[id] != domain.ResultVoid {
+			t.Errorf("outcome %d result = %v, want void (winner not in market)", id, outcomes.resultUpdates[id])
+		}
+	}
+	if markets.statusUpdates[20] != domain.MarketVoid {
+		t.Errorf("market status = %v, want void", markets.statusUpdates[20])
+	}
+	// Возврат stake.
+	if sum := sumDeltas(wallets, 5); sum != 100 {
+		t.Errorf("user 5 refund = %d, want 100", sum)
+	}
+	if bets.settledCalls[0].Status != domain.BetVoid {
+		t.Errorf("bet status = %q, want void", bets.settledCalls[0].Status)
+	}
+}
+
+// Идемпотентность SettleCustomEvent: второй прогон не добавляет выплат.
+func TestSettlementService_SettleCustomEvent_Idempotent(t *testing.T) {
+	svc, _, _, markets, outcomes, bets, wallets, walletTx := newTestSettlement(t)
+	ocs := setupCustomFixture(markets, outcomes)
+
+	calls := 0
+	bets.listPendingFn = func(_ context.Context, _ []int64) ([]domain.Bet, error) {
+		calls++
+		if calls == 1 {
+			return []domain.Bet{
+				{ID: 1, UserID: 5, OutcomeID: ocs[0].ID, Stake: 100, PotentialPayout: 200, Status: domain.BetPending},
+			}, nil
+		}
+		return nil, nil // второй прогон — pending нет
+	}
+	wallets.getForUpdFn = func(_ context.Context, userID int64) (domain.Wallet, error) {
+		return domain.Wallet{UserID: userID, Balance: 1000}, nil
+	}
+	wallets.updateBalFn = func(_ context.Context, _ int64, d int64) (int64, error) { return d, nil }
+	walletTx.createFn = func(_ context.Context, _ domain.WalletTransaction) (int64, error) { return 1, nil }
+
+	if err := svc.SettleCustomEvent(context.Background(), 1, 200); err != nil {
+		t.Fatalf("SettleCustomEvent 1: %v", err)
+	}
+	firstDeltas := len(wallets.balanceByUser[5])
+
+	if err := svc.SettleCustomEvent(context.Background(), 1, 200); err != nil {
+		t.Fatalf("SettleCustomEvent 2: %v", err)
+	}
+	if got := len(wallets.balanceByUser[5]); got != firstDeltas {
+		t.Errorf("second run added movements: before=%d after=%d, want equal", firstDeltas, got)
+	}
+}
