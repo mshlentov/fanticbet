@@ -114,6 +114,36 @@ type adjustResponse struct {
 	Balance int64 `json:"balance"`
 }
 
+// --- DTO чемпионатов (лиг, M8) ---
+
+// adminLeagueDTO — чемпионат в ответе admin-эндпоинтов. Объявлен локально (а не
+// переиспользуется из event.go), чтобы admin-слой был самодостаточен — аналогично
+// adminOutcomeDTO vs outcomeDTO.
+type adminLeagueDTO struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	SportSlug string    `json:"sport_slug"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// adminLeaguesResponse — страница списка чемпионатов админки.
+type adminLeaguesResponse struct {
+	Items []adminLeagueDTO `json:"items"`
+}
+
+// createLeagueRequest — тело POST /admin/leagues. Поля обязательны.
+type createLeagueRequest struct {
+	Name      string `json:"name" binding:"required"`
+	SportSlug string `json:"sport_slug" binding:"required"`
+}
+
+// editLeagueRequest — тело PATCH /admin/leagues/:id. Оба поля опциональны.
+type editLeagueRequest struct {
+	Name      *string `json:"name"`
+	SportSlug *string `json:"sport_slug"`
+}
+
 // --- Хендлеры ---
 
 // CreateEvent — создать кастомное событие (POST /admin/events).
@@ -335,6 +365,171 @@ func (h *AdminHandler) AdjustBalance(c *gin.Context) {
 	}
 
 	respondJSON(c, http.StatusOK, adjustResponse{Balance: balance})
+}
+
+// --- Хендлеры чемпионатов (лиг, M8) ---
+
+// ListLeagues — список чемпионатов с опциональным фильтром по sport_slug
+// (GET /admin/leagues?sport_slug=).
+//
+// @Summary      Список чемпионатов
+// @Description  Список чемпионатов (лиг). Параметр sport_slug опционален.
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        sport_slug  query     string  false  "Фильтр по виду спорта (sport_slug)"
+// @Success      200  {object}  adminLeaguesResponse
+// @Failure      401  {object}  errorResponse
+// @Failure      403  {object}  errorResponse
+// @Failure      500  {object}  errorResponse
+// @Router       /admin/leagues [get]
+func (h *AdminHandler) ListLeagues(c *gin.Context) {
+	leagues, err := h.admin.ListLeagues(c.Request.Context(), c.Query("sport_slug"))
+	if err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	respondJSON(c, http.StatusOK, adminLeaguesResponse{Items: toAdminLeagueDTOs(leagues)})
+}
+
+// CreateLeague — создать чемпионат (POST /admin/leagues).
+//
+// @Summary      Создать чемпионат
+// @Description  Создаёт чемпионат (лигу): {name, sport_slug}. Дубликаты (name, sport_slug) допустимы — различаются по id.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      createLeagueRequest  true  "Параметры чемпионата"
+// @Success      201   {object}  adminLeagueDTO
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      403   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /admin/leagues [post]
+func (h *AdminHandler) CreateLeague(c *gin.Context) {
+	_, ok := middleware.UserIDFromContext(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+		return
+	}
+
+	var req createLeagueRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "validation_error", "Неверные данные запроса")
+		return
+	}
+
+	league, err := h.admin.CreateLeague(c.Request.Context(), service.CreateLeagueInput{
+		Name:      req.Name,
+		SportSlug: req.SportSlug,
+	})
+	if err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	respondJSON(c, http.StatusCreated, toAdminLeagueDTO(league))
+}
+
+// EditLeague — переименовать / сменить спорт чемпионата (PATCH /admin/leagues/:id).
+//
+// @Summary      Редактировать чемпионат
+// @Description  Правит name и/или sport_slug чемпионата. Оба поля опциональны.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      int                 true  "ID чемпионата"
+// @Param        body  body      editLeagueRequest   true  "Поля для обновления"
+// @Success      204   {object}  nil
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      403   {object}  errorResponse
+// @Failure      404   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /admin/leagues/{id} [patch]
+func (h *AdminHandler) EditLeague(c *gin.Context) {
+	id, ok := parseAdminID(c, "id")
+	if !ok {
+		return // parseAdminID уже отправил ответ
+	}
+
+	var req editLeagueRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "validation_error", "Неверные данные запроса")
+		return
+	}
+
+	if err := h.admin.UpdateLeague(c.Request.Context(), id, service.UpdateLeagueInput{
+		Name:      req.Name,
+		SportSlug: req.SportSlug,
+	}); err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	respondJSON(c, http.StatusNoContent, nil)
+}
+
+// DeleteLeague — удалить чемпионат (DELETE /admin/leagues/:id). Запрещено, если
+// к чемпионату привязаны события (409 conflict).
+//
+// @Summary      Удалить чемпионат
+// @Description  Удаляет чемпионат. Если к нему привязаны события — 409 conflict.
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      int  true  "ID чемпионата"
+// @Success      204   {object}  nil
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      403   {object}  errorResponse
+// @Failure      404   {object}  errorResponse
+// @Failure      409   {object}  errorResponse
+// @Router       /admin/leagues/{id} [delete]
+func (h *AdminHandler) DeleteLeague(c *gin.Context) {
+	id, ok := parseAdminID(c, "id")
+	if !ok {
+		return // parseAdminID уже отправил ответ
+	}
+
+	if err := h.admin.DeleteLeague(c.Request.Context(), id); err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	respondJSON(c, http.StatusNoContent, nil)
+}
+
+// toAdminLeagueDTO маппит доменную лигу в DTO ответа админки.
+func toAdminLeagueDTO(l domain.League) adminLeagueDTO {
+	return adminLeagueDTO{
+		ID:        l.ID,
+		Name:      l.Name,
+		SportSlug: l.SportSlug,
+		CreatedAt: l.CreatedAt,
+		UpdatedAt: l.UpdatedAt,
+	}
+}
+
+// toAdminLeagueDTOs маппит срез доменных лиг в DTO. Не забываем про nil → пустой
+// срез, чтобы ответ всегда содержал "items": [], а не null.
+func toAdminLeagueDTOs(leagues []domain.League) []adminLeagueDTO {
+	items := make([]adminLeagueDTO, 0, len(leagues))
+	for _, l := range leagues {
+		items = append(items, toAdminLeagueDTO(l))
+	}
+	return items
 }
 
 // parseAdminID достаёт и валидирует path-параметр :id. При ошибке отправляет 400

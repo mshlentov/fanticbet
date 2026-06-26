@@ -67,9 +67,9 @@ type EditEventInput struct {
 const minCustomOutcomes = 2
 
 // AdminService — операции администратора: создание/правка/отмена/расчёт
-// кастомных событий и ручная корректировка баланса. Финансовые операции
-// (корректировка баланса, отмена, расчёт) идут в транзакции с FOR UPDATE на
-// кошельке (см. architecture.md §4, conventions §7-8).
+// кастомных событий, управление чемпионатами (leagues) и ручная корректировка
+// баланса. Финансовые операции (корректировка баланса, отмена, расчёт) идут в
+// транзакции с FOR UPDATE на кошельке (см. architecture.md §4, conventions §7-8).
 //
 // Сервис НЕ знает про HTTP: handler передаёт доменные структуры, сервис
 // возвращает доменные ошибки, которые handler мапит на HTTP-коды.
@@ -78,6 +78,7 @@ type AdminService struct {
 	events     repository.EventRepository
 	markets    repository.MarketRepository
 	outcomes   repository.OutcomeRepository
+	leagues    repository.LeagueRepository
 	wallets    repository.WalletRepository
 	walletTx   repository.WalletTransactionRepository
 	settlement *SettlementService // отмена и расчёт делегируются в него
@@ -93,6 +94,7 @@ func NewAdminService(
 	events repository.EventRepository,
 	markets repository.MarketRepository,
 	outcomes repository.OutcomeRepository,
+	leagues repository.LeagueRepository,
 	wallets repository.WalletRepository,
 	walletTx repository.WalletTransactionRepository,
 	settlement *SettlementService,
@@ -106,6 +108,7 @@ func NewAdminService(
 		events:     events,
 		markets:    markets,
 		outcomes:   outcomes,
+		leagues:    leagues,
 		wallets:    wallets,
 		walletTx:   walletTx,
 		settlement: settlement,
@@ -337,6 +340,84 @@ func (s *AdminService) AdjustBalance(ctx context.Context, userID, amount int64, 
 	s.logger.Printf("AdminService.AdjustBalance: user_id=%d amount=%d reason=%q balance_after=%d",
 		userID, amount, reason, newBalance)
 	return newBalance, nil
+}
+
+// CreateLeagueInput — тело POST /admin/leagues: имя чемпионата и вид спорта.
+type CreateLeagueInput struct {
+	Name      string
+	SportSlug string
+}
+
+// UpdateLeagueInput — тело PATCH /admin/leagues/:id. Оба поля опциональны (nil =
+// «не менять»).
+type UpdateLeagueInput struct {
+	Name      *string
+	SportSlug *string
+}
+
+// CreateLeague создаёт чемпионат после валидации непустых полей. Возвращает
+// созданную лигу с проставленным id. Дубликаты (name, sport_slug) допустимы —
+// схема не накладывает уникальности; они различаются по id.
+func (s *AdminService) CreateLeague(ctx context.Context, input CreateLeagueInput) (domain.League, error) {
+	if input.Name == "" {
+		return domain.League{}, fmt.Errorf("AdminService.CreateLeague empty name: %w", domain.ErrBetOutOfRange)
+	}
+	if input.SportSlug == "" {
+		return domain.League{}, fmt.Errorf("AdminService.CreateLeague empty sport_slug: %w", domain.ErrBetOutOfRange)
+	}
+
+	id, err := s.leagues.Create(ctx, domain.League{Name: input.Name, SportSlug: input.SportSlug})
+	if err != nil {
+		return domain.League{}, fmt.Errorf("AdminService.CreateLeague: %w", err)
+	}
+	// created_at/updated_at проставляет БД (DEFAULT now()); для ответа достаточно
+	// вернуть поля запроса + id — handler использует только их.
+	return domain.League{ID: id, Name: input.Name, SportSlug: input.SportSlug}, nil
+}
+
+// UpdateLeague правит name и/или sport_slug чемпионата. nil-поля оставляют
+// текущее значение; непустое строковое поле заменяет старое. domain.ErrNotFound
+// (404), если чемпионата нет.
+func (s *AdminService) UpdateLeague(ctx context.Context, id int64, input UpdateLeagueInput) error {
+	if input.Name != nil && *input.Name == "" {
+		return fmt.Errorf("AdminService.UpdateLeague empty name: %w", domain.ErrBetOutOfRange)
+	}
+	if input.SportSlug != nil && *input.SportSlug == "" {
+		return fmt.Errorf("AdminService.UpdateLeague empty sport_slug: %w", domain.ErrBetOutOfRange)
+	}
+
+	if err := s.leagues.Update(ctx, id, input.Name, input.SportSlug); err != nil {
+		return fmt.Errorf("AdminService.UpdateLeague id=%d: %w", id, err)
+	}
+	return nil
+}
+
+// DeleteLeague удаляет чемпионат, но блокирует удаление, если к нему привязаны
+// события (events.league_id) — в этом случае domain.ErrConflict (409). Иначе
+// делегирует в репозиторий; domain.ErrNotFound (404), если чемпионата нет.
+func (s *AdminService) DeleteLeague(ctx context.Context, id int64) error {
+	count, err := s.leagues.CountEventsByLeague(ctx, id)
+	if err != nil {
+		return fmt.Errorf("AdminService.DeleteLeague count id=%d: %w", id, err)
+	}
+	if count > 0 {
+		return fmt.Errorf("AdminService.DeleteLeague id=%d events=%d: %w", id, count, domain.ErrConflict)
+	}
+
+	if err := s.leagues.Delete(ctx, id); err != nil {
+		return fmt.Errorf("AdminService.DeleteLeague id=%d: %w", id, err)
+	}
+	return nil
+}
+
+// ListLeagues возвращает чемпионаты, опционально отфильтрованные по sport_slug.
+// Используется как админкой (GET /admin/leagues?sport_slug=), так и каталогом.
+func (s *AdminService) ListLeagues(ctx context.Context, sportSlug string) ([]domain.League, error) {
+	leagues, err := s.leagues.List(ctx, sportSlug)
+	if err != nil {
+		return nil, fmt.Errorf("AdminService.ListLeagues: %w", err)
+	}
+	return leagues, nil
 }
 
 // validateCreate проверяет вход создания кастомного события до транзакции.

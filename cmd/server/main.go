@@ -74,6 +74,7 @@ func main() {
 	marketRepo := repository.NewMarketRepository(pool)
 	outcomeRepo := repository.NewOutcomeRepository(pool)
 	betRepo := repository.NewBetRepository(pool)
+	leagueRepo := repository.NewLeagueRepository(pool)
 
 	jwtMgr, err := security.NewJWTManager(cfg.JWTSecret, accessTTL)
 	if err != nil {
@@ -82,7 +83,7 @@ func main() {
 
 	authSvc := service.NewAuthService(txMgr, userRepo, refreshRepo, walletRepo, walletTxRepo, jwtMgr, cfg.SignupBonus, accessTTL, refreshTTL)
 	userSvc := service.NewUserService(userRepo, walletRepo, walletTxRepo)
-	eventSvc := service.NewEventService(eventRepo, marketRepo, outcomeRepo)
+	eventSvc := service.NewEventService(eventRepo, marketRepo, outcomeRepo, leagueRepo)
 	bettingSvc := service.NewBettingService(txMgr, betRepo, outcomeRepo, marketRepo, eventRepo, walletRepo, walletTxRepo, cfg.BetMin, cfg.BetMax)
 	// SettlementService — расчёт завершённых событий. Используется воркером (не
 	// хендлером): тот же набор репозиториев, что у BettingService, плюс tx-менеджер.
@@ -92,10 +93,10 @@ func main() {
 	// история ставок и лидерборд с in-memory кэшем. Порог числа ставок для
 	// попадания в топ берётся из конфига LEADERBOARD_MIN_BETS.
 	statsSvc := service.NewStatsService(userRepo, betRepo, repository.NewStatsRepository(pool), cfg.LeaderboardMinBets)
-	// AdminService — админка (M6): создание/правка/отмена/расчёт кастомных
-	// событий и ручная корректировка баланса. Отмена и расчёт делегируются в
-	// SettlementService (идемпотентные выплаты/возвраты).
-	adminSvc := service.NewAdminService(txMgr, eventRepo, marketRepo, outcomeRepo, walletRepo, walletTxRepo, settlementSvc, nil)
+	// AdminService — админка (M6 + M8): создание/правка/отмена/расчёт кастомных
+	// событий, управление чемпионатами (leagues) и ручная корректировка баланса.
+	// Отмена и расчёт делегируются в SettlementService (идемпотентные выплаты).
+	adminSvc := service.NewAdminService(txMgr, eventRepo, marketRepo, outcomeRepo, leagueRepo, walletRepo, walletTxRepo, settlementSvc, nil)
 
 	yandexCfg, vkCfg := handler.NewOAuthConfigs(
 		cfg.YandexClientID, cfg.YandexClientSecret, cfg.YandexRedirectURI,
@@ -152,8 +153,10 @@ func main() {
 			auth.GET("/:provider/callback", oauthH.Callback)
 		}
 
-		// Каталог событий (публичный, без авторизации): виды спорта и лента.
+		// Каталог событий (публичный, без авторизации): виды спорта, чемпионаты
+		// и лента.
 		v1.GET("/sports", eventH.Sports)
+		v1.GET("/leagues", eventH.ListLeagues)
 		v1.GET("/events", eventH.List)
 		v1.GET("/events/:id", eventH.Get)
 
@@ -176,14 +179,21 @@ func main() {
 			me.GET("/bets", betH.List)
 		}
 
-		// Админка (M6): за AuthRequired + AdminRequired (роль admin). Создание,
-		// правка/отмена, ручной расчёт кастомных событий и корректировка баланса.
+		// Админка (M6 + M8): за AuthRequired + AdminRequired (роль admin). Создание,
+		// правка/отмена, ручной расчёт кастомных событий, управление чемпионатами
+		// (leagues) и корректировка баланса.
 		admin := v1.Group("/admin", middleware.AuthRequired(jwtMgr), middleware.AdminRequired())
 		{
 			admin.POST("/events", adminH.CreateEvent)
 			admin.PATCH("/events/:id", adminH.EditEvent)
 			admin.POST("/events/:id/settle", adminH.SettleEvent)
 			admin.POST("/users/:id/adjust", adminH.AdjustBalance)
+
+			// Чемпионаты (лиги) — справочник для событий (M8).
+			admin.GET("/leagues", adminH.ListLeagues)
+			admin.POST("/leagues", adminH.CreateLeague)
+			admin.PATCH("/leagues/:id", adminH.EditLeague)
+			admin.DELETE("/leagues/:id", adminH.DeleteLeague)
 		}
 	}
 

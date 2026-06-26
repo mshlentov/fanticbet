@@ -161,6 +161,67 @@ func (m *fakeOutcomeRepo) UpdateLabelAndOdds(_ context.Context, id int64, label 
 	return nil
 }
 
+// fakeLeagueRepo — фейк репозитория чемпионатов (M8). Поля-функции перекрываются
+// тестом под сценарий; счётчики/записи фиксируют вызовы для проверок admin-тестов.
+type fakeLeagueRepo struct {
+	createFn        func(ctx context.Context, l domain.League) (int64, error)
+	getByIDFn       func(ctx context.Context, id int64) (domain.League, error)
+	listFn          func(ctx context.Context, sportSlug string) ([]domain.League, error)
+	updateFn        func(ctx context.Context, id int64, name *string, sportSlug *string) error
+	deleteFn        func(ctx context.Context, id int64) error
+	countEventsFn   func(ctx context.Context, id int64) (int64, error)
+	createCalls     []domain.League          // все вызовы Create (тесты admin)
+	createNextID    int64                    // счётчик id для создаваемых лиг
+	updateCalls     []leagueUpdateCall       // все вызовы Update (тесты admin)
+	deleteCalls     []int64                  // все id, переданные в Delete
+	updateErr       error                    // если задано — возвращается из Update (NotFound и т.п.)
+	deleteErr       error                    // если задано — возвращается из Delete
+	countEvents     int64                    // число привязанных событий (сценарий блокировки удаления)
+}
+
+// leagueUpdateCall — запись одного вызова Update (id + обновляемые поля).
+type leagueUpdateCall struct {
+	ID        int64
+	Name      *string
+	SportSlug *string
+}
+
+func (m *fakeLeagueRepo) Create(_ context.Context, l domain.League) (int64, error) {
+	m.createNextID++
+	l.ID = m.createNextID
+	m.createCalls = append(m.createCalls, l)
+	if m.createFn != nil {
+		return m.createFn(context.Background(), l)
+	}
+	return l.ID, nil
+}
+func (m *fakeLeagueRepo) GetByID(ctx context.Context, id int64) (domain.League, error) {
+	return m.getByIDFn(ctx, id)
+}
+func (m *fakeLeagueRepo) List(ctx context.Context, sportSlug string) ([]domain.League, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, sportSlug)
+	}
+	return nil, nil
+}
+func (m *fakeLeagueRepo) Update(_ context.Context, id int64, name *string, sportSlug *string) error {
+	m.updateCalls = append(m.updateCalls, leagueUpdateCall{ID: id, Name: name, SportSlug: sportSlug})
+	if m.updateErr != nil {
+		return m.updateErr
+	}
+	return nil
+}
+func (m *fakeLeagueRepo) Delete(_ context.Context, id int64) error {
+	m.deleteCalls = append(m.deleteCalls, id)
+	if m.deleteErr != nil {
+		return m.deleteErr
+	}
+	return nil
+}
+func (m *fakeLeagueRepo) CountEventsByLeague(_ context.Context, _ int64) (int64, error) {
+	return m.countEvents, nil
+}
+
 // --- Тесты ---
 
 func TestEventService_ListSports_AppendsCustomWhenMissing(t *testing.T) {
@@ -168,7 +229,7 @@ func TestEventService_ListSports_AppendsCustomWhenMissing(t *testing.T) {
 		&fakeEventRepo{sportsFn: func(context.Context) ([]string, error) {
 			return []string{"basketball", "football"}, nil
 		}},
-		&fakeMarketRepo{}, &fakeOutcomeRepo{},
+		&fakeMarketRepo{}, &fakeOutcomeRepo{}, &fakeLeagueRepo{},
 	)
 
 	sports, err := svc.ListSports(context.Background())
@@ -192,7 +253,7 @@ func TestEventService_ListSports_NoDuplicateCustom(t *testing.T) {
 		&fakeEventRepo{sportsFn: func(context.Context) ([]string, error) {
 			return []string{"custom", "football"}, nil
 		}},
-		&fakeMarketRepo{}, &fakeOutcomeRepo{},
+		&fakeMarketRepo{}, &fakeOutcomeRepo{}, &fakeLeagueRepo{},
 	)
 
 	sports, err := svc.ListSports(context.Background())
@@ -235,6 +296,7 @@ func TestEventService_ListEvents_AssemblesTree(t *testing.T) {
 		&fakeOutcomeRepo{byMarkets: func(context.Context, []int64) ([]domain.Outcome, error) {
 			return outcomes, nil
 		}},
+		&fakeLeagueRepo{},
 	)
 
 	got, err := svc.ListEvents(context.Background(), repository.EventFilter{})
@@ -266,6 +328,7 @@ func TestEventService_ListEvents_EmptyShortCircuits(t *testing.T) {
 			return nil, nil
 		}},
 		&fakeOutcomeRepo{},
+		&fakeLeagueRepo{},
 	)
 
 	got, err := svc.ListEvents(context.Background(), repository.EventFilter{})
@@ -285,7 +348,7 @@ func TestEventService_GetEvent_NotFound(t *testing.T) {
 		&fakeEventRepo{getFn: func(context.Context, int64) (domain.Event, error) {
 			return domain.Event{}, domain.ErrNotFound
 		}},
-		&fakeMarketRepo{}, &fakeOutcomeRepo{},
+		&fakeMarketRepo{}, &fakeOutcomeRepo{}, &fakeLeagueRepo{},
 	)
 
 	_, err := svc.GetEvent(context.Background(), 42)
@@ -305,6 +368,7 @@ func TestEventService_GetEvent_Assembles(t *testing.T) {
 		&fakeOutcomeRepo{byMarket: map[int64][]domain.Outcome{
 			10: {{ID: 100, MarketID: 10, Code: domain.OutcomeHome}},
 		}},
+		&fakeLeagueRepo{},
 	)
 
 	got, err := svc.GetEvent(context.Background(), 1)
@@ -316,5 +380,29 @@ func TestEventService_GetEvent_Assembles(t *testing.T) {
 	}
 	if len(got.Markets) != 1 || len(got.Markets[0].Outcomes) != 1 {
 		t.Fatalf("assembled wrong: %+v", got.Markets)
+	}
+}
+
+func TestEventService_ListLeagues_DelegatesFilter(t *testing.T) {
+	var gotFilter string
+	svc := NewEventService(
+		&fakeEventRepo{},
+		&fakeMarketRepo{},
+		&fakeOutcomeRepo{},
+		&fakeLeagueRepo{listFn: func(_ context.Context, sportSlug string) ([]domain.League, error) {
+			gotFilter = sportSlug
+			return []domain.League{{ID: 1, Name: "АПЛ", SportSlug: "football"}}, nil
+		}},
+	)
+
+	leagues, err := svc.ListLeagues(context.Background(), "football")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotFilter != "football" {
+		t.Errorf("filter passed to repo = %q, want football", gotFilter)
+	}
+	if len(leagues) != 1 || leagues[0].Name != "АПЛ" {
+		t.Errorf("leagues = %+v, want 1 league «АПЛ»", leagues)
 	}
 }

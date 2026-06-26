@@ -71,6 +71,22 @@ type eventsResponse struct {
 	Items []eventDTO `json:"items"`
 }
 
+// --- DTO чемпионатов (лиг, M8) ---
+
+// leagueDTO — чемпионат в публичном каталоге. Объявлен локально (а не
+// переиспользуется из admin.go), чтобы публичный слой каталога не сцеплялся с
+// приватными типами AdminHandler — аналогично outcomeDTO vs adminOutcomeDTO.
+type leagueDTO struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	SportSlug string    `json:"sport_slug"`
+}
+
+// leaguesResponse — список чемпионатов для фильтра ленты.
+type leaguesResponse struct {
+	Items []leagueDTO `json:"items"`
+}
+
 // Sports — список видов спорта, по которым есть события (+ custom).
 //
 // @Summary      Виды спорта
@@ -229,4 +245,35 @@ func toOutcomeDTO(o domain.Outcome) outcomeDTO {
 		Odds:   o.Odds,
 		Result: result,
 	}
+}
+
+// ListLeagues — публичный список чемпионатов с опциональным фильтром по sport_slug
+// (GET /leagues?sport_slug=). Используется фильтром ленты событий.
+//
+// @Summary      Чемпионаты
+// @Description  Список чемпионатов (лиг) для фильтра ленты. Параметр sport_slug опционален.
+// @Tags         events
+// @Produce      json
+// @Param        sport_slug  query     string  false  "Фильтр по виду спорта (sport_slug)"
+// @Success      200  {object}  leaguesResponse
+// @Failure      500  {object}  errorResponse
+// @Router       /leagues [get]
+func (h *EventHandler) ListLeagues(c *gin.Context) {
+	leagues, err := h.events.ListLeagues(c.Request.Context(), c.Query("sport_slug"))
+	if err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	items := make([]leagueDTO, 0, len(leagues))
+	for _, l := range leagues {
+		items = append(items, leagueDTO{
+			ID:        l.ID,
+			Name:      l.Name,
+			SportSlug: l.SportSlug,
+		})
+	}
+	respondJSON(c, http.StatusOK, leaguesResponse{Items: items})
 }

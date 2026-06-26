@@ -20,6 +20,7 @@ func newTestAdmin(t *testing.T) (
 	*fakeEventRepo,
 	*fakeMarketRepo,
 	*fakeOutcomeRepo,
+	*fakeLeagueRepo,
 	*fakeWalletRepo,
 	*fakeWalletTxRepo,
 ) {
@@ -28,13 +29,14 @@ func newTestAdmin(t *testing.T) (
 	events := &fakeEventRepo{}
 	markets := &fakeMarketRepo{}
 	outcomes := &fakeOutcomeRepo{}
+	leagues := &fakeLeagueRepo{}
 	wallets := &fakeWalletRepo{}
 	walletTx := &fakeWalletTxRepo{}
 
 	settlement := NewSettlementService(tx, events, markets, outcomes,
 		&fakeBetRepo{}, wallets, walletTx, nil)
-	svc := NewAdminService(tx, events, markets, outcomes, wallets, walletTx, settlement, nil)
-	return svc, tx, events, markets, outcomes, wallets, walletTx
+	svc := NewAdminService(tx, events, markets, outcomes, leagues, wallets, walletTx, settlement, nil)
+	return svc, tx, events, markets, outcomes, leagues, wallets, walletTx
 }
 
 // decPtr — хелпер для *decimal.Decimal в инпутах. strPtr уже объявлен в
@@ -63,7 +65,7 @@ func validCreateInput() CustomEventInput {
 // --- CreateCustomEvent ---
 
 func TestAdminService_CreateCustomEvent_Success(t *testing.T) {
-	svc, tx, events, markets, outcomes, _, _ := newTestAdmin(t)
+	svc, tx, events, markets, outcomes, _, _, _ := newTestAdmin(t)
 	input := validCreateInput()
 
 	result, err := svc.CreateCustomEvent(context.Background(), 77, input)
@@ -132,7 +134,7 @@ func TestAdminService_CreateCustomEvent_Success(t *testing.T) {
 }
 
 func TestAdminService_CreateCustomEvent_TooFewOutcomes(t *testing.T) {
-	svc, tx, _, _, _, _, _ := newTestAdmin(t)
+	svc, tx, _, _, _, _, _, _ := newTestAdmin(t)
 	input := validCreateInput()
 	input.Market.Outcomes = input.Market.Outcomes[:1] // один исход
 
@@ -147,7 +149,7 @@ func TestAdminService_CreateCustomEvent_TooFewOutcomes(t *testing.T) {
 }
 
 func TestAdminService_CreateCustomEvent_InvalidOdds(t *testing.T) {
-	svc, tx, _, _, _, _, _ := newTestAdmin(t)
+	svc, tx, _, _, _, _, _, _ := newTestAdmin(t)
 	input := validCreateInput()
 	// odds = 1.0 (не > 1.0) — нарушает CHECK odds > 1.0.
 	input.Market.Outcomes[0].Odds = decPtr("1.0")
@@ -164,7 +166,7 @@ func TestAdminService_CreateCustomEvent_InvalidOdds(t *testing.T) {
 // --- EditEvent ---
 
 func TestAdminService_EditEvent_NotCustom(t *testing.T) {
-	svc, _, events, _, _, _, _ := newTestAdmin(t)
+	svc, _, events, _, _, _, _, _ := newTestAdmin(t)
 	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
 		return domain.Event{ID: id, Source: domain.SourceOddsAPI, Status: domain.EventUpcoming}, nil
 	}
@@ -176,7 +178,7 @@ func TestAdminService_EditEvent_NotCustom(t *testing.T) {
 }
 
 func TestAdminService_EditEvent_AlreadySettled(t *testing.T) {
-	svc, _, events, _, _, _, _ := newTestAdmin(t)
+	svc, _, events, _, _, _, _, _ := newTestAdmin(t)
 	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
 		return domain.Event{ID: id, Source: domain.SourceCustom, Status: domain.EventSettled}, nil
 	}
@@ -188,7 +190,7 @@ func TestAdminService_EditEvent_AlreadySettled(t *testing.T) {
 }
 
 func TestAdminService_EditEvent_UpdatesFields(t *testing.T) {
-	svc, _, events, markets, outcomes, _, _ := newTestAdmin(t)
+	svc, _, events, markets, outcomes, _, _, _ := newTestAdmin(t)
 	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
 		return domain.Event{ID: id, Source: domain.SourceCustom, Status: domain.EventUpcoming}, nil
 	}
@@ -239,7 +241,7 @@ func TestAdminService_EditEvent_UpdatesFields(t *testing.T) {
 }
 
 func TestAdminService_EditEvent_InvalidOdds(t *testing.T) {
-	svc, _, events, _, _, _, _ := newTestAdmin(t)
+	svc, _, events, _, _, _, _, _ := newTestAdmin(t)
 	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
 		return domain.Event{ID: id, Source: domain.SourceCustom, Status: domain.EventUpcoming}, nil
 	}
@@ -255,7 +257,7 @@ func TestAdminService_EditEvent_InvalidOdds(t *testing.T) {
 // --- CancelEvent ---
 
 func TestAdminService_CancelEvent_DelegatesToSettlement(t *testing.T) {
-	svc, _, events, markets, outcomes, _, _ := newTestAdmin(t)
+	svc, _, events, markets, outcomes, _, _, _ := newTestAdmin(t)
 	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
 		return domain.Event{ID: id, Source: domain.SourceCustom, Status: domain.EventUpcoming}, nil
 	}
@@ -285,7 +287,7 @@ func TestAdminService_CancelEvent_DelegatesToSettlement(t *testing.T) {
 }
 
 func TestAdminService_CancelEvent_AlreadyCancelled(t *testing.T) {
-	svc, _, events, _, _, _, _ := newTestAdmin(t)
+	svc, _, events, _, _, _, _, _ := newTestAdmin(t)
 	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
 		return domain.Event{ID: id, Source: domain.SourceCustom, Status: domain.EventCancelled}, nil
 	}
@@ -299,7 +301,7 @@ func TestAdminService_CancelEvent_AlreadyCancelled(t *testing.T) {
 // --- SettleCustom ---
 
 func TestAdminService_SettleCustom_DelegatesToSettlement(t *testing.T) {
-	svc, _, events, markets, outcomes, _, _ := newTestAdmin(t)
+	svc, _, events, markets, outcomes, _, _, _ := newTestAdmin(t)
 	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
 		return domain.Event{ID: id, Source: domain.SourceCustom, Status: domain.EventUpcoming}, nil
 	}
@@ -330,7 +332,7 @@ func TestAdminService_SettleCustom_DelegatesToSettlement(t *testing.T) {
 }
 
 func TestAdminService_SettleCustom_NotCustom(t *testing.T) {
-	svc, _, events, _, _, _, _ := newTestAdmin(t)
+	svc, _, events, _, _, _, _, _ := newTestAdmin(t)
 	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
 		return domain.Event{ID: id, Source: domain.SourceOddsAPI, Status: domain.EventUpcoming}, nil
 	}
@@ -344,7 +346,7 @@ func TestAdminService_SettleCustom_NotCustom(t *testing.T) {
 // --- AdjustBalance ---
 
 func TestAdminService_AdjustBalance_SuccessPositive(t *testing.T) {
-	svc, _, _, _, _, wallets, walletTx := newTestAdmin(t)
+	svc, _, _, _, _, _, wallets, walletTx := newTestAdmin(t)
 	wallets.getForUpdFn = func(_ context.Context, userID int64) (domain.Wallet, error) {
 		return domain.Wallet{UserID: userID, Balance: 1000}, nil
 	}
@@ -376,7 +378,7 @@ func TestAdminService_AdjustBalance_SuccessPositive(t *testing.T) {
 }
 
 func TestAdminService_AdjustBalance_SuccessNegative(t *testing.T) {
-	svc, _, _, _, _, wallets, walletTx := newTestAdmin(t)
+	svc, _, _, _, _, _, wallets, walletTx := newTestAdmin(t)
 	wallets.getForUpdFn = func(_ context.Context, userID int64) (domain.Wallet, error) {
 		return domain.Wallet{UserID: userID, Balance: 1000}, nil
 	}
@@ -399,7 +401,7 @@ func TestAdminService_AdjustBalance_SuccessNegative(t *testing.T) {
 }
 
 func TestAdminService_AdjustBalance_InsufficientBalance(t *testing.T) {
-	svc, _, _, _, _, wallets, walletTx := newTestAdmin(t)
+	svc, _, _, _, _, _, wallets, walletTx := newTestAdmin(t)
 	wallets.getForUpdFn = func(_ context.Context, userID int64) (domain.Wallet, error) {
 		return domain.Wallet{UserID: userID, Balance: 100}, nil
 	}
@@ -422,7 +424,7 @@ func TestAdminService_AdjustBalance_InsufficientBalance(t *testing.T) {
 }
 
 func TestAdminService_AdjustBalance_ZeroAmount(t *testing.T) {
-	svc, tx, _, _, _, _, _ := newTestAdmin(t)
+	svc, tx, _, _, _, _, _, _ := newTestAdmin(t)
 
 	_, err := svc.AdjustBalance(context.Background(), 5, 0, "бездействие")
 	if !errors.Is(err, domain.ErrBetOutOfRange) {
@@ -435,7 +437,7 @@ func TestAdminService_AdjustBalance_ZeroAmount(t *testing.T) {
 }
 
 func TestAdminService_AdjustBalance_LocksWallet(t *testing.T) {
-	svc, _, _, _, _, wallets, walletTx := newTestAdmin(t)
+	svc, _, _, _, _, _, wallets, walletTx := newTestAdmin(t)
 	forUpdateCalled := false
 	wallets.getForUpdFn = func(_ context.Context, userID int64) (domain.Wallet, error) {
 		forUpdateCalled = true
@@ -452,5 +454,158 @@ func TestAdminService_AdjustBalance_LocksWallet(t *testing.T) {
 	// FOR UPDATE обязателен перед изменением баланса (conventions §7-8).
 	if !forUpdateCalled {
 		t.Error("GetByUserIDForUpdate (FOR UPDATE) must be called before UpdateBalance")
+	}
+}
+
+// --- CreateLeague ---
+
+func TestAdminService_CreateLeague_Success(t *testing.T) {
+	svc, _, _, _, _, leagues, _, _ := newTestAdmin(t)
+
+	league, err := svc.CreateLeague(context.Background(), CreateLeagueInput{
+		Name: "Английская Премьер-лига", SportSlug: "football",
+	})
+	if err != nil {
+		t.Fatalf("CreateLeague: %v", err)
+	}
+	if league.ID == 0 {
+		t.Errorf("league id = %d, want non-zero", league.ID)
+	}
+	if league.Name != "Английская Премьер-лига" || league.SportSlug != "football" {
+		t.Errorf("league = %+v", league)
+	}
+	// Репозиторий получил ровно то, что пришло из DTO.
+	if len(leagues.createCalls) != 1 {
+		t.Fatalf("createCalls = %d, want 1", len(leagues.createCalls))
+	}
+	if leagues.createCalls[0].Name != "Английская Премьер-лига" {
+		t.Errorf("repo name = %q", leagues.createCalls[0].Name)
+	}
+}
+
+func TestAdminService_CreateLeague_EmptyName(t *testing.T) {
+	svc, _, _, _, _, _, _, _ := newTestAdmin(t)
+
+	_, err := svc.CreateLeague(context.Background(), CreateLeagueInput{Name: "", SportSlug: "football"})
+	if !errors.Is(err, domain.ErrBetOutOfRange) {
+		t.Errorf("err = %v, want ErrBetOutOfRange for empty name", err)
+	}
+}
+
+func TestAdminService_CreateLeague_EmptySportSlug(t *testing.T) {
+	svc, _, _, _, _, leagues, _, _ := newTestAdmin(t)
+
+	_, err := svc.CreateLeague(context.Background(), CreateLeagueInput{Name: "АПЛ", SportSlug: ""})
+	if !errors.Is(err, domain.ErrBetOutOfRange) {
+		t.Errorf("err = %v, want ErrBetOutOfRange for empty sport_slug", err)
+	}
+	// Невалидный запрос не должен дойти до репозитория.
+	if len(leagues.createCalls) != 0 {
+		t.Errorf("createCalls = %d, want 0 for invalid input", len(leagues.createCalls))
+	}
+}
+
+// --- UpdateLeague ---
+
+func TestAdminService_UpdateLeague_Success(t *testing.T) {
+	svc, _, _, _, _, leagues, _, _ := newTestAdmin(t)
+
+	newName := "Серия А"
+	err := svc.UpdateLeague(context.Background(), 7, UpdateLeagueInput{Name: &newName})
+	if err != nil {
+		t.Fatalf("UpdateLeague: %v", err)
+	}
+	if len(leagues.updateCalls) != 1 {
+		t.Fatalf("updateCalls = %d, want 1", len(leagues.updateCalls))
+	}
+	if leagues.updateCalls[0].ID != 7 {
+		t.Errorf("update id = %d, want 7", leagues.updateCalls[0].ID)
+	}
+	if leagues.updateCalls[0].Name == nil || *leagues.updateCalls[0].Name != newName {
+		t.Errorf("update name = %v, want %q", leagues.updateCalls[0].Name, newName)
+	}
+	if leagues.updateCalls[0].SportSlug != nil {
+		t.Errorf("update sport_slug = %v, want nil (unchanged)", leagues.updateCalls[0].SportSlug)
+	}
+}
+
+func TestAdminService_UpdateLeague_NotFound(t *testing.T) {
+	svc, _, _, _, _, leagues, _, _ := newTestAdmin(t)
+	leagues.updateErr = domain.ErrNotFound
+
+	err := svc.UpdateLeague(context.Background(), 999, UpdateLeagueInput{Name: strPtr("x")})
+	if !errors.Is(err, domain.ErrNotFound) {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestAdminService_UpdateLeague_EmptyName(t *testing.T) {
+	svc, _, _, _, _, _, _, _ := newTestAdmin(t)
+	empty := ""
+
+	err := svc.UpdateLeague(context.Background(), 1, UpdateLeagueInput{Name: &empty})
+	if !errors.Is(err, domain.ErrBetOutOfRange) {
+		t.Errorf("err = %v, want ErrBetOutOfRange for empty name", err)
+	}
+}
+
+// --- DeleteLeague ---
+
+func TestAdminService_DeleteLeague_Success(t *testing.T) {
+	svc, _, _, _, _, leagues, _, _ := newTestAdmin(t)
+	// countEvents = 0 по умолчанию (fakeLeagueRepo) → удаление разрешено.
+
+	err := svc.DeleteLeague(context.Background(), 3)
+	if err != nil {
+		t.Fatalf("DeleteLeague: %v", err)
+	}
+	if len(leagues.deleteCalls) != 1 || leagues.deleteCalls[0] != 3 {
+		t.Errorf("deleteCalls = %v, want [3]", leagues.deleteCalls)
+	}
+}
+
+func TestAdminService_DeleteLeague_BlockedByEvents(t *testing.T) {
+	svc, _, _, _, _, leagues, _, _ := newTestAdmin(t)
+	leagues.countEvents = 5 // к лиге привязаны 5 событий
+
+	err := svc.DeleteLeague(context.Background(), 3)
+	if !errors.Is(err, domain.ErrConflict) {
+		t.Errorf("err = %v, want ErrConflict (409)", err)
+	}
+	// Блокировка происходит до вызова Delete — репозиторий не должен удалять.
+	if len(leagues.deleteCalls) != 0 {
+		t.Errorf("deleteCalls = %v, want none when league has events", leagues.deleteCalls)
+	}
+}
+
+func TestAdminService_DeleteLeague_NotFound(t *testing.T) {
+	svc, _, _, _, _, leagues, _, _ := newTestAdmin(t)
+	leagues.deleteErr = domain.ErrNotFound // лиги не существует
+
+	err := svc.DeleteLeague(context.Background(), 999)
+	if !errors.Is(err, domain.ErrNotFound) {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+// --- ListLeagues ---
+
+func TestAdminService_ListLeagues_DelegatesToRepo(t *testing.T) {
+	svc, _, _, _, _, leagues, _, _ := newTestAdmin(t)
+	var gotFilter string
+	leagues.listFn = func(_ context.Context, sportSlug string) ([]domain.League, error) {
+		gotFilter = sportSlug
+		return []domain.League{{ID: 1, Name: "АПЛ", SportSlug: "football"}}, nil
+	}
+
+	got, err := svc.ListLeagues(context.Background(), "football")
+	if err != nil {
+		t.Fatalf("ListLeagues: %v", err)
+	}
+	if gotFilter != "football" {
+		t.Errorf("filter = %q, want football", gotFilter)
+	}
+	if len(got) != 1 || got[0].Name != "АПЛ" {
+		t.Errorf("leagues = %+v, want 1 «АПЛ»", got)
 	}
 }
