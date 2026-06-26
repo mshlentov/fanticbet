@@ -113,13 +113,14 @@ func (h *EventHandler) Sports(c *gin.Context) {
 // List — лента событий с рынками и текущими коэффициентами.
 //
 // @Summary      Лента событий
-// @Description  Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/q опциональны.
+// @Description  Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/league_id/q опциональны.
 // @Tags         events
 // @Produce      json
-// @Param        sport   query     string  false  "Фильтр по виду спорта (sport_slug)"
-// @Param        status  query     string  false  "Фильтр по статусу"  Enums(upcoming, live, settled, cancelled)
-// @Param        q       query     string  false  "Поиск по названию события"
-// @Param        page    query     int     false  "Номер страницы (с 1)"  default(1)
+// @Param        sport      query     string  false  "Фильтр по виду спорта (sport_slug)"
+// @Param        status     query     string  false  "Фильтр по статусу"  Enums(upcoming, live, settled, cancelled)
+// @Param        league_id  query     int     false  "Фильтр по чемпионату (id)"
+// @Param        q          query     string  false  "Поиск по названию события"
+// @Param        page       query     int     false  "Номер страницы (с 1)"  default(1)
 // @Success      200     {object}  eventsResponse
 // @Failure      400     {object}  errorResponse
 // @Failure      500     {object}  errorResponse
@@ -138,11 +139,23 @@ func (h *EventHandler) List(c *gin.Context) {
 		}
 	}
 
+	// league_id опционален: nil, если параметр пуст/невалиден (но не 0/негатив).
+	var leagueID *int64
+	if raw := c.Query("league_id"); raw != "" {
+		lid, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || lid <= 0 {
+			respondError(c, http.StatusBadRequest, "validation_error", "Неверный идентификатор чемпионата")
+			return
+		}
+		leagueID = &lid
+	}
+
 	filter := repository.EventFilter{
-		Sport:  c.Query("sport"),
-		Status: domain.EventStatus(status),
-		Query:  c.Query("q"),
-		Page:   page,
+		Sport:    c.Query("sport"),
+		Status:   domain.EventStatus(status),
+		LeagueID: leagueID,
+		Query:    c.Query("q"),
+		Page:     page,
 	}
 
 	events, err := h.events.ListEvents(c.Request.Context(), filter)

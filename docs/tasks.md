@@ -242,23 +242,23 @@
 - [x] 🟢 Константа `SourceManual EventSource = "manual"` рядом с `SourceOddsAPI`/`SourceCustom`
 
 ### Чемпионаты (leagues)
-- [ ] 🟡 `LeagueRepository`: `Create`, `GetByID`, `List(sportSlug)`, `Update`, `Delete` (проверка «нет привязанных событий» — на уровне репозитория или сервиса)
-- [ ] 🟡 `AdminService`: методы `CreateLeague` / `UpdateLeague` / `DeleteLeague` (с проверкой ссылок из `events.league_id` → 409 при наличии) / `ListLeagues`
-- [ ] 🟢 Handlers: `GET /admin/leagues` (с фильтром `sport_slug`), `POST /admin/leagues`, `PATCH /admin/leagues/:id`, `DELETE /admin/leagues/:id` + DTO с валидацией
-- [ ] 🟢 Публичный `GET /leagues?sport_slug=` (для фильтра в ленте) — опционально отдельной задачей
+- [x] 🟡 `LeagueRepository`: `Create`, `GetByID`, `List(sportSlug)`, `Update`, `Delete` (проверка «нет привязанных событий» — на уровне репозитория или сервиса)
+- [x] 🟡 `AdminService`: методы `CreateLeague` / `UpdateLeague` / `DeleteLeague` (с проверкой ссылок из `events.league_id` → 409 при наличии) / `ListLeagues`
+- [x] 🟢 Handlers: `GET /admin/leagues` (с фильтром `sport_slug`), `POST /admin/leagues`, `PATCH /admin/leagues/:id`, `DELETE /admin/leagues/:id` + DTO с валидацией
+- [x] 🟢 Публичный `GET /leagues?sport_slug=` (для фильтра в ленте) — опционально отдельной задачей
 
 ### Спортивные матчи (source='manual')
-- [ ] 🔴 `AdminService.CreateMatch` — **одна транзакция**: создать `event` (`source='manual'`, `home/away`, `league_id`+`league_name`, `sport_slug`, `starts_at`, `status='upcoming'`) → рынки (`ML` обязателен; `TOTALS` с `line`) → исходы (`home/draw/away` для ML; `over/under` для TOTALS) с коэффициентами. Валидация: ≥1 рынок ML, кэфы > 1.0, `league_id` существует.
-- [ ] 🟡 `AdminService.EditMatch` — правка `title/starts_at/home/away/league_id` и коэффициентов исходов; только для `source='manual'` и `status='upcoming'`
-- [ ] 🟡 `AdminService.CancelMatch` — делегирует в `SettlementService.SettleEvent(cancelled)` (void ставок), как `CancelEvent` в M6
-- [ ] 🔴 `AdminService.SetMatchScores(home, away)` — главное отличие от custom: вызывает `events.UpdateStatusAndScores` + `SettlementService.SettleEvent(eventID, 'settled', {home,away})`. Авторасчёт ML+TOTALS по счёту. Только для `source='manual'`, `status IN (upcoming, live)`, счёт ещё не введён.
-- [ ] 🟢 `AdminService.SetMatchStatus('live')` — ручной перевод `upcoming → live` (рынки → `suspended`). До ввода счёта.
-- [ ] 🟢 Handlers: `POST /admin/matches`, `PATCH /admin/matches/:id`, `POST /admin/matches/:id/scores`, `POST /admin/matches/:id/status` + DTO
-- [ ] 🟢 Маршруты в `main.go` под группой `/admin` (за `AuthRequired`+`AdminRequired`)
+- [x] 🔴 `AdminService.CreateMatch` — **одна транзакция**: создать `event` (`source='manual'`, `home/away`, `league_id`+`league_name`, `sport_slug`, `starts_at`, `status='upcoming'`) → рынки (`ML` обязателен; `TOTALS` с `line`) → исходы (`home/draw/away` для ML; `over/under` для TOTALS) с коэффициентами. Валидация: ≥1 рынок ML, кэфы > 1.0, `league_id` существует.
+- [x] 🟡 `AdminService.EditMatch` — правка `title/starts_at/home/away/league_id` и коэффициентов исходов; только для `source='manual'` и `status='upcoming'`
+- [x] 🟡 `AdminService.CancelMatch` — делегирует в `SettlementService.SettleEvent(cancelled)` (void ставок), как `CancelEvent` в M6
+- [x] 🔴 `AdminService.SetMatchScores(home, away)` — главное отличие от custom: вызывает `events.UpdateStatusAndScores` + `SettlementService.SettleEvent(eventID, 'settled', {home,away})`. Авторасчёт ML+TOTALS по счёту. Только для `source='manual'`, `status IN (upcoming, live)`, счёт ещё не введён.
+- [x] 🟢 `AdminService.SetMatchStatus('live')` — ручной перевод `upcoming → live` (рынки → `suspended`). До ввода счёта.
+- [x] 🟢 Handlers: `POST /admin/matches`, `PATCH /admin/matches/:id`, `POST /admin/matches/:id/scores`, `POST /admin/matches/:id/status` + DTO
+- [x] 🟢 Маршруты в `main.go` под группой `/admin` (за `AuthRequired`+`AdminRequired`)
 
 ### Лента событий (правки)
-- [ ] 🟡 `GET /events`: добавить фильтр `league_id` (в `EventRepository.ListWithFilters`). Матчи `source='manual'` уже видны — отдельной выборки не нужно.
-- [ ] 🟢 Swagger-аннотации на новых admin-эндпоинтах; перегенерация спеки (`swag init`)
+- [x] 🟡 `GET /events`: добавить фильтр `league_id` (в `EventRepository.ListWithFilters`). Матчи `source='manual'` уже видны — отдельной выборки не нужно.
+- [x] 🟢 Swagger-аннотации на новых admin-эндпоинтах; перегенерация спеки (`swag init`)
 
 ### Пауза Odds-API
 - [x] 🟢 Воркеры не стартуют без `ODDS_API_KEY` (уже реализовано в `cmd/server/main.go`)
@@ -272,8 +272,8 @@
 - [ ] 🟡 *(тест)* Отмена матча до ввода счёта → возврат всех ставок
 
 ### Тесты (критичные места)
-- [ ] 🟡 *(тест)* `SetMatchScores` корректно считает ML (победа/ничья) и TOTALS (over/under/push) через переиспользуемый `SettlementService`
-- [ ] 🟢 *(тест)* Нельзя удалить лигу с привязанными событиями (409)
+- [x] 🟡 *(тест)* `SetMatchScores` корректно считает ML (победа/ничья) и TOTALS (over/under/push) через переиспользуемый `SettlementService`
+- [x] 🟢 *(тест)* Нельзя удалить лигу с привязанными событиями (409)
 
 ### Backlog M8 (после основной части)
 - [ ] 🟢 Загрузка коэффициентов сразу для нескольких событий (массовый ввод в админке)

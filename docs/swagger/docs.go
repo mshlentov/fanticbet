@@ -480,6 +480,312 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/matches": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создаёт матч (source='manual') с командами, ссылкой на чемпионат и рынками ML/TOTALS с коэффициентами в одной транзакции. Расчёт — по введённому позже счёту.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Создать спортивный матч",
+                "parameters": [
+                    {
+                        "description": "Параметры матча",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.createMatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handler.createEventResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/matches/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Правит title/starts_at/home/away/league_id и коэффициенты исходов или отменяет матч (status='cancelled' → void ставок). Только для source='manual', status='upcoming'.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Редактировать матч",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID матча",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Поля для обновления",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.editMatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/matches/{id}/scores": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Вводит финальный счёт {home, away} и запускает расчёт ML+TOTALS (SettleEvent по scores). Только для source='manual', status upcoming/live, пока счёт не введён.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Ввести счёт и рассчитать матч",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID матча",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Финальный счёт",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.matchScoresRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/matches/{id}/status": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Ручной перевод upcoming → live (рынки → suspended, ставки закрываются). Единственное поддерживаемое значение status: live.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Перевести статус матча",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID матча",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Целевой статус",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.matchStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users/{id}/adjust": {
             "post": {
                 "security": [
@@ -890,7 +1196,7 @@ const docTemplate = `{
         },
         "/events": {
             "get": {
-                "description": "Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/q опциональны.",
+                "description": "Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/league_id/q опциональны.",
                 "produces": [
                     "application/json"
                 ],
@@ -915,6 +1221,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Фильтр по статусу",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Фильтр по чемпионату (id)",
+                        "name": "league_id",
                         "in": "query"
                     },
                     {
@@ -1649,6 +1961,41 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.createMatchRequest": {
+            "type": "object",
+            "required": [
+                "away",
+                "home",
+                "league_id",
+                "markets",
+                "starts_at",
+                "title"
+            ],
+            "properties": {
+                "away": {
+                    "type": "string"
+                },
+                "home": {
+                    "type": "string"
+                },
+                "league_id": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "markets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.matchMarketDTO"
+                    }
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.createOutcomeDTO": {
             "type": "object",
             "required": [
@@ -1695,6 +2042,51 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "sport_slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.editMatchOutcomeDTO": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "odds": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.editMatchRequest": {
+            "type": "object",
+            "properties": {
+                "away": {
+                    "type": "string"
+                },
+                "home": {
+                    "type": "string"
+                },
+                "league_id": {
+                    "type": "integer"
+                },
+                "outcomes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.editMatchOutcomeDTO"
+                    }
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "единственное допустимое значение: \"cancelled\"",
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }
@@ -1895,6 +2287,71 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.matchMarketDTO": {
+            "type": "object",
+            "required": [
+                "outcomes",
+                "type"
+            ],
+            "properties": {
+                "line": {
+                    "description": "NUMERIC(6,2) строкой; только для TOTALS",
+                    "type": "string"
+                },
+                "outcomes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.matchOutcomeDTO"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.matchOutcomeDTO": {
+            "type": "object",
+            "required": [
+                "code",
+                "label",
+                "odds"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "odds": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.matchScoresRequest": {
+            "type": "object",
+            "properties": {
+                "away": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "home": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "handler.matchStatusRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
                     "type": "string"
                 }
             }

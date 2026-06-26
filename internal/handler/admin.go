@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -142,6 +143,63 @@ type createLeagueRequest struct {
 type editLeagueRequest struct {
 	Name      *string `json:"name"`
 	SportSlug *string `json:"sport_slug"`
+}
+
+// --- DTO спортивных матчей (source='manual', M8) ---
+
+// matchOutcomeDTO — исход матча при создании. Odds — строка: NUMERIC(8,3)
+// сериализуется как строка, чтобы не терять точность (как в outcomeDTO.Odds).
+type matchOutcomeDTO struct {
+	Code  string `json:"code" binding:"required"`
+	Label string `json:"label" binding:"required"`
+	Odds  string `json:"odds" binding:"required"`
+}
+
+// matchMarketDTO — рынок матча: тип, линия (для TOTALS) и исходы с кэфами.
+type matchMarketDTO struct {
+	Type     string            `json:"type" binding:"required"`
+	Line     *string           `json:"line"` // NUMERIC(6,2) строкой; только для TOTALS
+	Outcomes []matchOutcomeDTO `json:"outcomes" binding:"required,dive"`
+}
+
+// createMatchRequest — тело POST /admin/matches.
+type createMatchRequest struct {
+	Title    string           `json:"title" binding:"required"`
+	LeagueID int64            `json:"league_id" binding:"required,min=1"`
+	StartsAt time.Time        `json:"starts_at" binding:"required"`
+	Home     string           `json:"home" binding:"required"`
+	Away     string           `json:"away" binding:"required"`
+	Markets  []matchMarketDTO `json:"markets" binding:"required,dive"`
+}
+
+// editMatchOutcomeDTO — правка коэффициента исхода матча по id. Odds опционален.
+type editMatchOutcomeDTO struct {
+	ID   int64   `json:"id" binding:"required,min=1"`
+	Odds *string `json:"odds"`
+}
+
+// editMatchRequest — тело PATCH /admin/matches/:id. Все поля опциональны, кроме
+// status (если задан — должен быть "cancelled", что выполняет отмену).
+type editMatchRequest struct {
+	Title    *string               `json:"title"`
+	StartsAt *time.Time            `json:"starts_at"`
+	Home     *string               `json:"home"`
+	Away     *string               `json:"away"`
+	LeagueID *int64                `json:"league_id"`
+	Status   *string               `json:"status"` // единственное допустимое значение: "cancelled"
+	Outcomes []editMatchOutcomeDTO `json:"outcomes"`
+}
+
+// matchScoresRequest — тело POST /admin/matches/:id/scores: финальный счёт.
+type matchScoresRequest struct {
+	Home int `json:"home" binding:"min=0"`
+	Away int `json:"away" binding:"min=0"`
+}
+
+// matchStatusRequest — тело POST /admin/matches/:id/status: целевой статус.
+// Единственное поддерживаемое значение — "live".
+type matchStatusRequest struct {
+	Status string `json:"status" binding:"required"`
 }
 
 // --- Хендлеры ---
@@ -509,6 +567,257 @@ func (h *AdminHandler) DeleteLeague(c *gin.Context) {
 	}
 
 	respondJSON(c, http.StatusNoContent, nil)
+}
+
+// --- Хендлеры спортивных матчей (source='manual', M8) ---
+
+// CreateMatch — создать спортивный матч (POST /admin/matches).
+//
+// @Summary      Создать спортивный матч
+// @Description  Создаёт матч (source='manual') с командами, ссылкой на чемпионат и рынками ML/TOTALS с коэффициентами в одной транзакции. Расчёт — по введённому позже счёту.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      createMatchRequest  true  "Параметры матча"
+// @Success      201   {object}  createEventResponse
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      403   {object}  errorResponse
+// @Failure      404   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /admin/matches [post]
+func (h *AdminHandler) CreateMatch(c *gin.Context) {
+	adminID, ok := middleware.UserIDFromContext(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+		return
+	}
+
+	var req createMatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "validation_error", "Неверные данные запроса")
+		return
+	}
+
+	markets, err := parseMatchMarkets(req.Markets)
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
+
+	created, err := h.admin.CreateMatch(c.Request.Context(), adminID, service.CreateMatchInput{
+		Title:    req.Title,
+		LeagueID: req.LeagueID,
+		StartsAt: req.StartsAt,
+		Home:     req.Home,
+		Away:     req.Away,
+		Markets:  markets,
+	})
+	if err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	respondJSON(c, http.StatusCreated, toCreateEventResponse(created))
+}
+
+// EditMatch — правка/отмена матча (PATCH /admin/matches/:id).
+//
+// @Summary      Редактировать матч
+// @Description  Правит title/starts_at/home/away/league_id и коэффициенты исходов или отменяет матч (status='cancelled' → void ставок). Только для source='manual', status='upcoming'.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      int                true  "ID матча"
+// @Param        body  body      editMatchRequest   true  "Поля для обновления"
+// @Success      204   {object}  nil
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      403   {object}  errorResponse
+// @Failure      404   {object}  errorResponse
+// @Failure      409   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /admin/matches/{id} [patch]
+func (h *AdminHandler) EditMatch(c *gin.Context) {
+	eventID, ok := parseAdminID(c, "id")
+	if !ok {
+		return // parseAdminID уже отправил ответ
+	}
+
+	var req editMatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "validation_error", "Неверные данные запроса")
+		return
+	}
+
+	// status отличен от nil и не "cancelled" — это единственное поддерживаемое
+	// действие через status. Иначе — 400, как и в EditEvent.
+	cancel := false
+	if req.Status != nil {
+		if domain.EventStatus(*req.Status) != domain.EventCancelled {
+			respondError(c, http.StatusBadRequest, "validation_error",
+				"Единственное допустимое значение status: cancelled")
+			return
+		}
+		cancel = true
+	}
+
+	// Парсим коэффициенты правки из строк.
+	outcomes := make([]service.EditOutcomeInput, 0, len(req.Outcomes))
+	for i, oc := range req.Outcomes {
+		var oddsPtr *decimal.Decimal
+		if oc.Odds != nil {
+			odds, err := decimal.NewFromString(*oc.Odds)
+			if err != nil {
+				respondError(c, http.StatusBadRequest, "validation_error",
+					"Неверный формат коэффициента в исходе "+strconv.Itoa(i))
+				return
+			}
+			oddsPtr = &odds
+		}
+		outcomes = append(outcomes, service.EditOutcomeInput{
+			ID:   oc.ID,
+			Odds: oddsPtr,
+		})
+	}
+
+	if err := h.admin.EditMatch(c.Request.Context(), eventID, service.EditMatchInput{
+		Title:    req.Title,
+		StartsAt: req.StartsAt,
+		Home:     req.Home,
+		Away:     req.Away,
+		LeagueID: req.LeagueID,
+		Cancel:   cancel,
+		Outcomes: outcomes,
+	}); err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	respondJSON(c, http.StatusNoContent, nil)
+}
+
+// SetMatchScores — ввести финальный счёт и рассчитать матч (POST /admin/matches/:id/scores).
+//
+// @Summary      Ввести счёт и рассчитать матч
+// @Description  Вводит финальный счёт {home, away} и запускает расчёт ML+TOTALS (SettleEvent по scores). Только для source='manual', status upcoming/live, пока счёт не введён.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      int                 true  "ID матча"
+// @Param        body  body      matchScoresRequest  true  "Финальный счёт"
+// @Success      204   {object}  nil
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      403   {object}  errorResponse
+// @Failure      404   {object}  errorResponse
+// @Failure      409   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /admin/matches/{id}/scores [post]
+func (h *AdminHandler) SetMatchScores(c *gin.Context) {
+	eventID, ok := parseAdminID(c, "id")
+	if !ok {
+		return // parseAdminID уже отправил ответ
+	}
+
+	var req matchScoresRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "validation_error", "Неверные данные запроса")
+		return
+	}
+
+	if err := h.admin.SetMatchScores(c.Request.Context(), eventID, service.MatchScoresInput{
+		Home: req.Home,
+		Away: req.Away,
+	}); err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	respondJSON(c, http.StatusNoContent, nil)
+}
+
+// SetMatchStatus — ручной перевод статуса матча (POST /admin/matches/:id/status).
+//
+// @Summary      Перевести статус матча
+// @Description  Ручной перевод upcoming → live (рынки → suspended, ставки закрываются). Единственное поддерживаемое значение status: live.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      int                 true  "ID матча"
+// @Param        body  body      matchStatusRequest  true  "Целевой статус"
+// @Success      204   {object}  nil
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      403   {object}  errorResponse
+// @Failure      404   {object}  errorResponse
+// @Failure      409   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /admin/matches/{id}/status [post]
+func (h *AdminHandler) SetMatchStatus(c *gin.Context) {
+	eventID, ok := parseAdminID(c, "id")
+	if !ok {
+		return // parseAdminID уже отправил ответ
+	}
+
+	var req matchStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "validation_error", "Неверные данные запроса")
+		return
+	}
+
+	if err := h.admin.SetMatchStatus(c.Request.Context(), eventID, service.MatchStatusInput{
+		Status: domain.EventStatus(req.Status),
+	}); err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	respondJSON(c, http.StatusNoContent, nil)
+}
+
+// parseMatchMarkets переводит DTO рынков матча в input-структуры сервиса, парся
+// line/odds из строк (NUMERIC сериализуется строкой ради точности). Возвращает
+// понятную ошибку валидации с указанием индекса рынка/исхода.
+func parseMatchMarkets(dtos []matchMarketDTO) ([]service.MatchMarketInput, error) {
+	out := make([]service.MatchMarketInput, 0, len(dtos))
+	for i, m := range dtos {
+		mi := service.MatchMarketInput{Type: domain.MarketType(m.Type)}
+		if m.Line != nil {
+			line, err := decimal.NewFromString(*m.Line)
+			if err != nil {
+				return nil, fmt.Errorf("Неверный формат линии в рынке %d", i)
+			}
+			mi.Line = &line
+		}
+		outcomes := make([]service.MatchOutcomeInput, 0, len(m.Outcomes))
+		for j, oc := range m.Outcomes {
+			odds, err := decimal.NewFromString(oc.Odds)
+			if err != nil {
+				return nil, fmt.Errorf("Неверный формат коэффициента в рынке %d исходе %d", i, j)
+			}
+			outcomes = append(outcomes, service.MatchOutcomeInput{
+				Code:  domain.OutcomeCode(oc.Code),
+				Label: oc.Label,
+				Odds:  odds,
+			})
+		}
+		mi.Outcomes = outcomes
+		out = append(out, mi)
+	}
+	return out, nil
 }
 
 // toAdminLeagueDTO маппит доменную лигу в DTO ответа админки.

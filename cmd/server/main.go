@@ -194,6 +194,13 @@ func main() {
 			admin.POST("/leagues", adminH.CreateLeague)
 			admin.PATCH("/leagues/:id", adminH.EditLeague)
 			admin.DELETE("/leagues/:id", adminH.DeleteLeague)
+
+			// Спортивные матчи (source='manual', M8): создание, правка/отмена,
+			// ввод финального счёта → расчёт ML/TOTALS, ручной перевод статуса.
+			admin.POST("/matches", adminH.CreateMatch)
+			admin.PATCH("/matches/:id", adminH.EditMatch)
+			admin.POST("/matches/:id/scores", adminH.SetMatchScores)
+			admin.POST("/matches/:id/status", adminH.SetMatchStatus)
 		}
 	}
 

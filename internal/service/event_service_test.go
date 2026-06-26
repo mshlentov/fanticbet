@@ -27,6 +27,9 @@ type fakeEventRepo struct {
 	// M6: флаги для отслеживания вызовов новых методов admin-сценариями.
 	createCalls        []domain.Event
 	updateDetailsCalls []eventDetailsCall
+	// M8: вызовы UpdateMatch и UpdateStatus (сценарии матчей).
+	updateMatchCalls []eventMatchUpdateCall
+	updateStatusCalls []eventStatusCall
 }
 
 // eventStatusScoreCall — запись одного вызова UpdateStatusAndScores.
@@ -43,6 +46,22 @@ type eventDetailsCall struct {
 	StartsAt *time.Time
 }
 
+// eventMatchUpdateCall — запись одного вызова UpdateMatch (M8).
+type eventMatchUpdateCall struct {
+	ID        int64
+	Home      *string
+	Away      *string
+	LeagueID  *int64
+	LeagueName *string
+	StartsAt  *time.Time
+}
+
+// eventStatusCall — запись одного вызова UpdateStatus (M8).
+type eventStatusCall struct {
+	ID     int64
+	Status domain.EventStatus
+}
+
 func (m *fakeEventRepo) Upsert(context.Context, domain.Event) (int64, error) { return 0, nil }
 func (m *fakeEventRepo) Create(_ context.Context, e domain.Event) (int64, error) {
 	m.createCalls = append(m.createCalls, e)
@@ -50,6 +69,16 @@ func (m *fakeEventRepo) Create(_ context.Context, e domain.Event) (int64, error)
 }
 func (m *fakeEventRepo) UpdateDetails(_ context.Context, id int64, title *string, startsAt *time.Time) error {
 	m.updateDetailsCalls = append(m.updateDetailsCalls, eventDetailsCall{ID: id, Title: title, StartsAt: startsAt})
+	return nil
+}
+func (m *fakeEventRepo) UpdateMatch(_ context.Context, id int64, home, away *string, leagueID *int64, leagueName *string, startsAt *time.Time) error {
+	m.updateMatchCalls = append(m.updateMatchCalls, eventMatchUpdateCall{
+		ID: id, Home: home, Away: away, LeagueID: leagueID, LeagueName: leagueName, StartsAt: startsAt,
+	})
+	return nil
+}
+func (m *fakeEventRepo) UpdateStatus(_ context.Context, id int64, status domain.EventStatus) error {
+	m.updateStatusCalls = append(m.updateStatusCalls, eventStatusCall{ID: id, Status: status})
 	return nil
 }
 func (m *fakeEventRepo) GetByID(ctx context.Context, id int64) (domain.Event, error) {
