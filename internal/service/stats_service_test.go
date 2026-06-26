@@ -20,7 +20,7 @@ func newTestStats(t *testing.T, minBets int) (*StatsService, *fakeUserRepo, *fak
 		},
 	}
 	bets := &fakeBetRepo{
-		listByUserFn: func(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error) {
+		listByUserFn: func(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.BetWithDetails, error) {
 			return nil, nil
 		},
 	}
@@ -95,7 +95,7 @@ func TestStatsService_ListUserBets_DelegatesToRepo(t *testing.T) {
 
 	const userID = int64(7)
 	called := false
-	bets.listByUserFn = func(ctx context.Context, id int64, status domain.BetStatus, page int) ([]domain.Bet, error) {
+	bets.listByUserFn = func(ctx context.Context, id int64, status domain.BetStatus, page int) ([]domain.BetWithDetails, error) {
 		called = true
 		if id != userID {
 			t.Errorf("ListByUser id = %d, want %d", id, userID)
@@ -106,7 +106,7 @@ func TestStatsService_ListUserBets_DelegatesToRepo(t *testing.T) {
 		if page != 2 {
 			t.Errorf("ListByUser page = %d, want 2", page)
 		}
-		return []domain.Bet{{ID: 1, UserID: id}}, nil
+		return []domain.BetWithDetails{{Bet: domain.Bet{ID: 1, UserID: id}}}, nil
 	}
 
 	result, err := svc.ListUserBets(context.Background(), userID, domain.BetWon, 2)

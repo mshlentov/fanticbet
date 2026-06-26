@@ -293,10 +293,10 @@
 - [x] 🟢 После выхода — редирект на главную (`/`); закрытие дропдауна по клику вне и по Esc. Компонент-дропдаун reusable (одна реализация для шапки и моб. навигации).
 
 ### Задача 2. Названия события и исхода в истории ставок
-- [ ] 🟡 Бэкенд: обогатить `betDTO` (`internal/handler/bet.go`) — добавить `event_title`, `event_home`, `event_away`, `outcome_label`, опционально `market_type`. Сейчас DTO отдаёт только голые `event_id`/`outcome_id` (показывается `Событие #42`, см. `MyBetsPage.tsx:173` и `UserProfilePage.tsx:170`).
-- [ ] 🟡 Реализация обогащения: либо JOIN в `BetRepository.ListByUser` (`bets → events / outcomes / markets`), либо batch-догрузка событий/исходов по спискам id в сервисе (по образцу `EventService.ListEvents`). Затронуты оба хендлера — `bet.go` (`/me/bets`) и `stats.go` (`/users/:id/bets`), т.к. делят один `toBetDTO`.
-- [ ] 🟢 Фронт: отобразить реальное название события (команды/`title`) и `outcome.label` в строках ставки на `/me/bets` (`MyBetsPage.tsx:173-178`) и `/users/:id` (`UserProfilePage.tsx:170-175`) + тип `Bet` в `web/src/api/types.ts:76-86`.
-- [ ] 🟢 Swagger-аннотации + перегенерация спеки (`swag init`).
+- [x] 🟡 Бэкенд: обогатить `betDTO` (`internal/handler/bet.go`) — добавить `event_title`, `event_home`, `event_away`, `outcome_label`, опционально `market_type`. Сейчас DTO отдаёт только голые `event_id`/`outcome_id` (показывается `Событие #42`, см. `MyBetsPage.tsx:173` и `UserProfilePage.tsx:170`).
+- [x] 🟡 Реализация обогащения: JOIN в `BetRepository.ListByUser` (`bets → events / outcomes / markets`) → новый `domain.BetWithDetails`. Затронуты оба хендлера — `bet.go` (`/me/bets`) и `stats.go` (`/users/:id/bets`) через общий `toBetDTODetailed`. Ответ `POST /bets` использует прежний `toBetDTO` (поля обогащения пусты).
+- [x] 🟢 Фронт: отобразить реальное название события (команды/`title`) и `outcome.label` в строках ставки на `/me/bets` и `/users/:id` (хелперы `betEventTitle`/`betOutcomeLabel` в `web/src/lib/bet.ts`) + поля в типе `Bet` (`web/src/api/types.ts`).
+- [x] 🟢 Swagger-аннотации + перегенерация спеки (`swag init`).
 
 ### Задача 3. Убрать завершённые события из ленты
 - [ ] 🟢 Бэкенд: `GET /events` без явного `?status=` не должен отдавать `settled` и `cancelled`. Сейчас в `EventRepository.ListWithFilters` затравка `WHERE TRUE` пропускает все статусы (`internal/repository/event.go`). Решение — при пустом `f.Status` добавлять `status NOT IN ('settled','cancelled')` (или расширить `EventFilter` полем исключений). Явный `?status=settled` должен работать как раньше (по требованию).

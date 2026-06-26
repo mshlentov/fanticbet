@@ -83,9 +83,10 @@ func (s *StatsService) GetPublicProfile(ctx context.Context, userID int64) (Publ
 }
 
 // ListUserBets возвращает страницу публичной истории ставок пользователя
-// (GET /users/:id/bets). Прокси к BetRepository.ListByUser, чтобы handler зависел
-// только от StatsService (слои: handler не зовёт repository напрямую).
-func (s *StatsService) ListUserBets(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error) {
+// (GET /users/:id/bets), обогащённую названиями события и исхода. Прокси к
+// BetRepository.ListByUser, чтобы handler зависел только от StatsService
+// (слои: handler не зовёт repository напрямую).
+func (s *StatsService) ListUserBets(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.BetWithDetails, error) {
 	bets, err := s.bets.ListByUser(ctx, userID, status, page)
 	if err != nil {
 		return nil, fmt.Errorf("StatsService.ListUserBets user_id=%d status=%s: %w", userID, status, err)

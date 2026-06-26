@@ -148,7 +148,7 @@ func (h *StatsHandler) UserBets(c *gin.Context) {
 	// nil-срез отдаём как пустой массив, чтобы клиент всегда получал [], а не null.
 	items := make([]betDTO, 0, len(bets))
 	for _, b := range bets {
-		items = append(items, toBetDTO(b))
+		items = append(items, toBetDTODetailed(b))
 	}
 	respondJSON(c, http.StatusOK, userBetsResponse{Page: page, Items: items})
 }

@@ -274,11 +274,11 @@ func TestBettingService_PlaceBet_OutcomeNotFound(t *testing.T) {
 
 func TestBettingService_ListBets(t *testing.T) {
 	svc, _, bets, _, _, _, _, _ := newTestBetting(t)
-	want := []domain.Bet{
-		{ID: 1, UserID: 5, Stake: 100, Status: domain.BetPending},
-		{ID: 2, UserID: 5, Stake: 200, Status: domain.BetWon},
+	want := []domain.BetWithDetails{
+		{Bet: domain.Bet{ID: 1, UserID: 5, Stake: 100, Status: domain.BetPending}},
+		{Bet: domain.Bet{ID: 2, UserID: 5, Stake: 200, Status: domain.BetWon}},
 	}
-	bets.listByUserFn = func(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error) {
+	bets.listByUserFn = func(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.BetWithDetails, error) {
 		if userID != 5 {
 			t.Errorf("queried wrong user: %d", userID)
 		}

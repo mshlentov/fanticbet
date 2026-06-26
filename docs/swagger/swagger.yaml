@@ -65,14 +65,24 @@ definitions:
     properties:
       created_at:
         type: string
+      event_away:
+        type: string
+      event_home:
+        type: string
       event_id:
         type: integer
+      event_title:
+        type: string
       id:
         type: integer
+      market_type:
+        type: string
       odds:
         type: number
       outcome_id:
         type: integer
+      outcome_label:
+        type: string
       potential_payout:
         type: integer
       settled_at:
