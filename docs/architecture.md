@@ -1,6 +1,8 @@
 # FanticBet — Архитектура MVP
 
-Платформа ставок на виртуальную валюту («фантики») на реальные спортивные события (данные из Odds-API.io) и кастомные события, создаваемые админом. Документ рассчитан на одного разработчика и постепенное развитие: сначала минимальное ядро, потом наращивание.
+Платформа ставок на виртуальную валюту («фантики») на спортивные события и кастомные события, создаваемые админом. Документ рассчитан на одного разработчика и постепенное развитие: сначала минимальное ядро, потом наращивание.
+
+> **Текущая фаза — M8 «Ручное управление событиями».** Интеграция с Odds-API.io **временно приостановлена**: воркеры синхронизации событий/коэффициентов/settlement не запускаются, пока `ODDS_API_KEY` пуст (см. `cmd/server/main.go`). Вместо этого события, коэффициенты и результаты вводит админ вручную — как спортивные матчи (с командами, чемпионатом, рынками ML/TOTALS и финальным счётом), так и произвольные события. Подробности — раздел 11 и веха M8 в `tasks.md`. Пакет `internal/oddsapi` и воркеры сохранены в коде для повторного включения без переписывания.
 
 ---
 
@@ -11,9 +13,9 @@
 | Бэкенд | Go + Gin, **монолит** | Один сервис, один деплой. Микросервисы для MVP — лишняя сложность |
 | БД | PostgreSQL 16 | Транзакции критичны для кошелька и ставок; JSONB для счетов матчей |
 | ORM / доступ к БД | GORM (или sqlc, если хочется ближе к SQL) | GORM быстрее для старта; миграции — через golang-migrate отдельно от GORM |
-| Кэш | Без Redis в MVP | Кэш коэффициентов живёт прямо в Postgres (их пишет воркер). In-memory кэш для лидерборда |
-| Интеграция с Odds-API | Фоновые воркеры (sync), **не** проксирование | Лимит 5000 req/час. Пользователи читают только локальную БД |
-| Расчёт ставок | Автоматический по `scores` из API для спортивных событий; ручной для кастомных | Поле `scores.periods` покрывает рынки ML и Totals |
+| Кэш | Без Redis в MVP | In-memory кэш для лидерборда. Коэффициенты живут в Postgres |
+| Источник событий | **Ручной ввод админом (M8)**; Odds-API — на паузе | На время M8 коэффициенты и результаты вносит админ через `/admin/*`. Воркеры Odds-API отключены |
+| Расчёт ставок | По `scores` для спортивных (ML, TOTALS); по победившему исходу для произвольных | `SettlementService` уже умеет оба варианта — переиспользуется для ручных матчей |
 | Авторизация | Email+пароль (bcrypt) + OAuth2 (Google, VK, Яндекс) через библиотеку `goth` | JWT (access 15 мин) + refresh-токен в httpOnly cookie |
 | Валюта | Фантики хранятся **целым числом** (int64) | Никаких float для денег. Коэффициенты — NUMERIC(8,3) |
 | Фронтенд | React + TypeScript + Vite, SPA поверх REST API | Стандартный стек, много материалов для обучения |
@@ -38,14 +40,21 @@
                 │   ├─ AuthService, UserService                │
                 │   ├─ BettingService (ставка, кошелёк)        │
                 │   ├─ SettlementService (расчёт)              │
-                │   └─ LeaderboardService                      │
+                │   ├─ AdminService (ручные события, лиги)     │
+                │   └─ StatsService (профиль, лидерборд)       │
                 │                                              │
                 │  Repository layer (Postgres)                 │
                 │                                              │
-                │  Background workers (goroutines + cron):     │
-                │   ├─ EventSyncWorker   (каждые 15 мин)  ──┐  │
-                │   ├─ OddsSyncWorker    (каждые 2 мин)   ──┼──┼──► Odds-API.io
-                │   └─ SettlementWorker  (каждые 5 мин)   ──┘  │    (REST, apiKey)
+                │  Background workers — НА ПАУЗЕ (M8):         │
+                │   воркеры синхронизации/расчёта Odds-API     │
+                │   не запускаются без ODDS_API_KEY            │
+                │   ┌──────────────────────────────────┐       │
+                │   │ (код сохранён) EventSync/OddsSync│ ──┐   │
+                │   │ (код сохранён) Settlement        │   │ на повторное
+                │   └──────────────────────────────────┘   │  включение
+                │                                          ▼  │
+                │                                    Odds-API.io │
+                │                                    (пауза в M8)│
                 └──────────────────┬──────────────────────────┘
                                    │
                               PostgreSQL
@@ -64,8 +73,8 @@ fanticbet/
 │   ├── handler/                  # Gin-хендлеры + middleware (auth, admin, CORS)
 │   ├── service/                  # бизнес-логика
 │   ├── repository/               # работа с Postgres
-│   ├── oddsapi/                  # HTTP-клиент Odds-API.io (свой пакет, легко мокается)
-│   └── worker/                   # event_sync.go, odds_sync.go, settlement.go
+│   ├── oddsapi/                  # HTTP-клиент Odds-API.io — НА ПАУЗЕ (M8); сохранён для повторного включения
+│   └── worker/                   # event_sync.go, odds_sync.go, settlement.go — НА ПАУЗЕ (M8)
 ├── migrations/                   # golang-migrate, *.up.sql / *.down.sql
 ├── web/                          # фронтенд (React, отдельный package.json)
 ├── docker-compose.yml
@@ -76,7 +85,11 @@ fanticbet/
 
 ## 3. Модель данных и схема БД
 
-Ключевая идея: единая модель `events → markets → outcomes` и для спортивных, и для кастомных событий. Ставка ссылается на `outcome` и **фиксирует коэффициент на момент ставки** — коэффициенты в `outcomes` потом меняются воркером, но ставку это не затрагивает.
+Ключевая идея: единая модель `events → markets → outcomes` и для спортивных (oddsapi/manual), и для произвольных (custom) событий. Ставка ссылается на `outcome` и **фиксирует коэффициент на момент ставки** — коэффициенты в `outcomes` потом меняются (в M8 — админом через `/admin/*`; позже — снова воркером), но ставку это не затрагивает.
+
+### Чемпионаты/лиги (M8)
+
+Чемпионат — отдельная сущность: чемпионат группирует события (АПЛ, НБА, «Кубок двора» и т.д.) и нужен для фильтров ленты и админки. Заводится админом. На событие ссылается `events.league_id` (внешний ключ); `events.league_name` остаётся денормализованной текстовой копией — удобно для oddsapi-событий (лига приходит из API как строка) и для выборок без join. У custom-событий `league_id` может быть NULL.
 
 ```sql
 -- ПОЛЬЗОВАТЕЛИ И АВТОРИЗАЦИЯ ------------------------------------------------
@@ -133,25 +146,39 @@ CREATE INDEX idx_wtx_user ON wallet_transactions(user_id, created_at DESC);
 
 -- СОБЫТИЯ, РЫНКИ, ИСХОДЫ ------------------------------------------------------
 
+-- Чемпионаты/лиги (M8). Группируют события (АПЛ, НБА, ...). Заводятся админом;
+-- у oddsapi-событий лига создаётся/подтягивается воркером как строка (при
+-- повторном включении). sport_slug — чтобы фильтровать лиги по виду спорта.
+CREATE TABLE leagues (
+    id          BIGSERIAL PRIMARY KEY,
+    name        TEXT NOT NULL,
+    sport_slug  TEXT NOT NULL,                   -- 'football', 'basketball', ...; 'custom' — не используется
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_leagues_sport ON leagues(sport_slug);
+
 CREATE TABLE events (
     id           BIGSERIAL PRIMARY KEY,
-    source       TEXT NOT NULL,                  -- 'oddsapi' | 'custom'
-    external_id  BIGINT,                         -- id события в Odds-API (NULL для custom)
-    sport_slug   TEXT NOT NULL,                  -- 'football', ... ; 'custom' для кастомных
-    league_name  TEXT,
-    title        TEXT NOT NULL,                  -- "Manchester United — Liverpool" или текст кастомного
-    home         TEXT,                           -- NULL для кастомных
+    source       TEXT NOT NULL,                  -- 'oddsapi' | 'manual' | 'custom'
+    external_id  BIGINT,                         -- id события в Odds-API (NULL для manual/custom)
+    sport_slug   TEXT NOT NULL,                  -- 'football', ... ; 'custom' для произвольных
+    league_id    BIGINT REFERENCES leagues(id),  -- ссылка на чемпионат; NULL для произвольных/oddsapi без лиги
+    league_name  TEXT,                           -- денормализованное имя (копия leagues.name / строка из API)
+    title        TEXT NOT NULL,                  -- "Manchester United — Liverpool" или текст произвольного
+    home         TEXT,                           -- NULL для произвольных
     away         TEXT,
     starts_at    TIMESTAMPTZ NOT NULL,
     status       TEXT NOT NULL DEFAULT 'upcoming',
                   -- 'upcoming' | 'live' | 'settled' | 'cancelled'
-    scores       JSONB,                          -- сырой scores из API; для аудита расчёта
-    created_by   BIGINT REFERENCES users(id),    -- админ-автор кастомного события
+    scores       JSONB,                          -- {"home":N,"away":N} — для расчёта ML/TOTALS; NULL, пока счёта нет
+    created_by   BIGINT REFERENCES users(id),    -- админ-автор manual/custom события
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (source, external_id)
 );
 CREATE INDEX idx_events_status_start ON events(status, starts_at);
+CREATE INDEX idx_events_league ON events(league_id);
 
 CREATE TABLE markets (
     id        BIGSERIAL PRIMARY KEY,
@@ -196,7 +223,7 @@ CREATE INDEX idx_bets_event   ON bets(event_id) WHERE status = 'pending';
 
 - **История ставок публична по продукту**, поэтому `GET /users/:id/bets` отдаёт ставки любого пользователя — отдельных настроек приватности в MVP нет (можно добавить флаг `users.is_history_public` позже).
 - Лидерборд в MVP считается агрегатным SQL-запросом по `bets` (profit = Σ payout − Σ stake по рассчитанным ставкам), без отдельной таблицы. При росте — материализованное представление или таблица `leaderboard_snapshots`, обновляемая воркером.
-- Для событий из Odds-API храним **одного букмекера** (например, Pinnacle или Bet365 — задаётся конфигом) и два рынка: ML и основной тотал. Этого достаточно для MVP и резко упрощает синхронизацию.
+- Для событий из Odds-API (когда интеграция снова включена) храним **одного букмекера** (задаётся конфигом) и два рынка: ML и основной тотал. Для ручных матчей (M8) те же рынки ML/TOTALS создаёт админ вместе с коэффициентами — бюрократии с букмекером нет.
 
 ---
 
@@ -242,12 +269,38 @@ OAuth-логика: callback ищет `auth_identities(provider, provider_user_i
 
 ### Admin (middleware: role = admin)
 
+В M8 админка управляет тремя связками: **чемпионаты**, **спортивные матчи** (manual, ML+TOTALS, расчёт по счёту) и **произвольные события** (custom, расчёт по победителю). Также сохраняются корректировка баланса (M6).
+
+#### Чемпионаты/лиги (M8)
+
 | Метод | Путь | Описание |
 |---|---|---|
-| POST | `/admin/events` | Создать кастомное событие: `{title, starts_at, market: {question, outcomes: [{label, odds}]}}` |
-| PATCH | `/admin/events/:id` | Редактировать / отменить (cancel → void всех ставок с возвратом) |
-| POST | `/admin/events/:id/settle` | `{winning_outcome_id}` — ручной расчёт кастомного события |
+| GET | `/admin/leagues` | Список чемпионатов (с фильтром по `sport_slug`) |
+| POST | `/admin/leagues` | Создать: `{name, sport_slug}` |
+| PATCH | `/admin/leagues/:id` | Переименовать / сменить спорт |
+| DELETE | `/admin/leagues/:id` | Удалить, если нет привязанных событий (иначе 409) |
+
+#### Спортивные матчи — source='manual' (M8)
+
+Создаёт событие `source='manual'` с командами, ссылкой на `league_id` и рынками ML/TOTALS с коэффициентами. Расчёт — по введённому счёту (переиспользует `SettlementService.SettleEvent(settled, scores)`).
+
+| Метод | Путь | Описание |
+|---|---|---|
+| POST | `/admin/matches` | Создать матч: `{title, league_id, starts_at, home, away, markets:[{type:ML\|TOTALS, line?, outcomes:[{code, label, odds}]}]}` |
+| PATCH | `/admin/matches/:id` | Правка (title/starts_at/команды/коэффициенты) или отмена (`status:'cancelled'` → void ставок) |
+| POST | `/admin/matches/:id/scores` | Ввести финальный счёт `{home, away}` → расчёт ML+TOTALS → `settled` |
+| POST | `/admin/matches/:id/status` | Ручной перевод статуса `upcoming → live` (ставки закрываются), до ввода счёта |
+
+#### Произвольные события — source='custom' (M6, остаётся)
+
+| Метод | Путь | Описание |
+|---|---|---|
+| POST | `/admin/events` | Создать произвольное событие: `{title, starts_at, market: {question, outcomes: [{label, odds}]}}` |
+| PATCH | `/admin/events/:id` | Редактировать / отменить (`status:'cancelled'` → void всех ставок с возвратом) |
+| POST | `/admin/events/:id/settle` | `{winning_outcome_id}` — ручной расчёт по победившему исходу |
 | POST | `/admin/users/:id/adjust` | `{amount, reason}` — ручная корректировка баланса |
+
+> **Почему расчёт матчей — через ввод счёта, а не выбором исхода.** Матч имеет связанные рынки ML (победитель/ничья) и TOTALS (тотал). Введя `{home, away}`, сервис **автоматически** определяет победителя и тотал — не нужно отдельно закрывать каждый рынок. Это ровно тот код, что считал бы oddsapi-события (см. `SettlementService.buildPlan`).
 
 ### Флоу размещения ставки (самое важное место системы)
 
@@ -271,6 +324,8 @@ COMMIT;
 ---
 
 ## 5. Интеграция с Odds-API.io: воркеры
+
+> **Состояние: НА ПАУЗЕ (с M8).** Все три воркера ниже не запускаются, пока не задан `ODDS_API_KEY` (`cmd/server/main.go` регистрирует их только при непустом ключе). Код и клиент `internal/oddsapi` сохранены — при возврате к Odds-API достаточно снова прописать ключ. На время M8 источником событий, коэффициентов и результатов является админ через `/admin/*` (см. раздел 11 и веху M8).
 
 Все воркеры — goroutines внутри того же процесса, расписание через `robfig/cron/v3`. Клиент `internal/oddsapi` — тонкая обёртка над REST с ретраями и логированием остатка лимита (заголовок `x-ratelimit-remaining`).
 
@@ -355,6 +410,12 @@ event.status='settled', scores сохраняем в events.scores
 14. Rate-limit на API (например, ulule/limiter), валидация (validator/v10), графceful shutdown воркеров.
 15. Dockerfile (multi-stage), nginx, HTTPS (caddy/certbot), бэкап Postgres (pg_dump по крону).
 
+**M8. Ручное управление событиями (текущая веха)**
+16. Чемпионаты: таблица `leagues`, CRUD `/admin/leagues`.
+17. Спортивные матчи (`source='manual'`): создание с командами, лигой и рынками ML/TOTALS; ввод финального счёта → расчёт (переиспользуется `SettlementService.SettleEvent`). Статус `upcoming → live` вручную.
+18. Произвольные события (`source='custom'`, из M6) — остаются как есть.
+19. Пауза Odds-API: воркеры не стартуют без `ODDS_API_KEY` (уже сделано в `main.go`); код сохранён.
+
 ---
 
 ## 9. Что дальше (за рамками MVP, но архитектура готова)
@@ -367,7 +428,62 @@ event.status='settled', scores сохраняем в events.scores
 
 ## 10. Открытые вопросы (мои текущие допущения)
 
-1. **Виды спорта на старте** — предположил футбол + баскетбол. Чем меньше, тем проще отладить settlement.
-2. **Букмекер-источник коэффициентов** — один, задаётся конфигом (Bet365 или Pinnacle). Сравнение букмекеров пользователю не показываем.
+1. **Виды спорта на старте** — предположил футбол + баскетбол. Чем меньше, тем проще отладить settlement. В M8 список формирует админ при создании лиг/матчей.
+2. **Букмекер-источник коэффициентов** — один, задаётся конфигом (Bet365 или Pinnacle). Актуально только при включённом Odds-API; в M8 коэффициенты вносит админ.
 3. **Экономика:** бонус 10 000 фантиков, ставка min 10 / max 10 000 — цифры произвольные, вынесены в конфиг.
 4. **Лидерборд:** метрика по умолчанию — profit за период; ROI как вторая. Нужен ли минимальный порог числа ставок для попадания в топ (например, ≥10)?
+
+---
+
+## 11. Ручное управление событиями (веха M8)
+
+На время M8 админ заменяет собой Odds-API: он заводит чемпионаты, матчи и коэффициенты, вводит результаты. Эта секция описывает, **как именно** это устроено — переиспользование существующего кода делает веху небольшой по объёму.
+
+### 11.1 Почему без нового «расчётного движка»
+
+`SettlementService` уже реализован и **нейтрален к источнику события**:
+
+- `SettleEvent(eventID, 'settled', scores)` считает ML (победитель из `home/away`, ничья → draw) и TOTALS (`home+away` vs `line`, равенство → void) по переданному `scores`. Это ровно то, что нужно для ручного матча после ввода счёта.
+- `SettleCustomEvent(eventID, winningOutcomeID)` считает произвольное событие по выбранному победителю (используется в M6, остаётся без изменений).
+- Оба метода идемпотентны и проводят выплаты/возвраты в транзакции с `FOR UPDATE`. Нового финансового кода писать не нужно.
+
+Следовательно, задача M8 сводится к **созданию данных** (матч + рынки + исходы) и **запуску расчёта** по готовому счёту — без новых правил settlement.
+
+### 11.2 Источники событий: три значения `source`
+
+| source | Кто создаёт | Рынки | Расчёт |
+|---|---|---|---|
+| `oddsapi` | Воркер (на паузе) | ML, TOTALS | Воркер по `scores` из API |
+| `manual` | Админ (`/admin/matches`) | ML, TOTALS (с кэфами) | Админ вводит счёт → `SettleEvent(settled, scores)` |
+| `custom` | Админ (`/admin/events`, M6) | CUSTOM | Админ выбирает победителя → `SettleCustomEvent` |
+
+### 11.3 Чемпионаты (`leagues`)
+
+Чемпионат — справочник: `{id, name, sport_slug}`. Событие ссылается на него через `events.league_id`. Логика:
+- При создании матча админ указывает `league_id` существующей лиги; `events.league_name` заполняется её копией (денормализация для ленты без join).
+- Удаление лиги блокируется, если к ней привязаны события (`conflict`, 409).
+- Публичная лента `/events?league_id=` фильтрует события по чемпионату (см. M8).
+
+### 11.4 Жизненный цикл ручного матча
+
+```
+создание (upcoming) ──► [ручной перевод] ──► live ──► ввод счёта ──► settled
+        │                      │                              (SettleEvent по scores)
+        └──────────────────────┴───── cancel (PATCH status) ──► cancelled (void ставок)
+```
+
+- `upcoming`: рынки `open`, ставки принимаются. Минимум один рынок (ML) с заполненными исходами и коэффициентами.
+- `live`: ручная отметка «матч идёт» — рынки переходят в `suspended`, новые ставки блокируются (проверка в `BettingService.PlaceBet` уже есть по `event.status`). До ввода счёта статус можно не менять — он нужен скорее для UI; ставки и так закрываются по `starts_at > now()`.
+- `settled`: админ вводит `{home, away}` → `SettleEvent(settled, scores)` определяет победителя/тотал, выплачивает ставки.
+- `cancelled`: через `PATCH /admin/matches/:id` (`status:'cancelled'`) → `SettleEvent(cancelled)` возвращает все ставки.
+
+### 11.5 Что НЕ меняется в M8
+
+- `BettingService.PlaceBet` — без правок: он проверяет `event.status='upcoming'`, `starts_at>now()`, `market.status='open'` и фиксирует коэффициент. Для ручных матчей эти условия работают как есть.
+- `bets`, `wallets`, `wallet_transactions` — схема и логика выплат/возвратов те же.
+- Лента `/events`, `/events/:id`, лидерборд, профиль — читают те же таблицы; матчи появляются автоматически, как только созданы.
+- Пакет `internal/oddsapi` и воркеры `internal/worker` — остаются в коде, не вызываются. Возврат к Odds-API — отдельная задача после M8.
+
+### 11.6 Возврат к Odds-API (после M8)
+
+Поскольку схема и сервис расчёта не были изменены под ручное управление, повторное включение Odds-API сводится к: (1) прописать `ODDS_API_KEY`, (2) убедиться, что воркер EventSync создаёт/подтягивает `leagues` по `sport_slug`+`name` из API. Ручные (`source='manual'`) и произвольные (`source='custom'`) события остаются рядом с oddsapi-событиями без конфликтов — их разделяет поле `source`.

@@ -71,6 +71,22 @@ type eventsResponse struct {
 	Items []eventDTO `json:"items"`
 }
 
+// --- DTO чемпионатов (лиг, M8) ---
+
+// leagueDTO — чемпионат в публичном каталоге. Объявлен локально (а не
+// переиспользуется из admin.go), чтобы публичный слой каталога не сцеплялся с
+// приватными типами AdminHandler — аналогично outcomeDTO vs adminOutcomeDTO.
+type leagueDTO struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	SportSlug string    `json:"sport_slug"`
+}
+
+// leaguesResponse — список чемпионатов для фильтра ленты.
+type leaguesResponse struct {
+	Items []leagueDTO `json:"items"`
+}
+
 // Sports — список видов спорта, по которым есть события (+ custom).
 //
 // @Summary      Виды спорта
@@ -97,13 +113,15 @@ func (h *EventHandler) Sports(c *gin.Context) {
 // List — лента событий с рынками и текущими коэффициентами.
 //
 // @Summary      Лента событий
-// @Description  Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/q опциональны.
+// @Description  Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/league_id/q опциональны.
 // @Tags         events
 // @Produce      json
-// @Param        sport   query     string  false  "Фильтр по виду спорта (sport_slug)"
-// @Param        status  query     string  false  "Фильтр по статусу"  Enums(upcoming, live, settled, cancelled)
-// @Param        q       query     string  false  "Поиск по названию события"
-// @Param        page    query     int     false  "Номер страницы (с 1)"  default(1)
+// @Param        sport      query     string  false  "Фильтр по виду спорта (sport_slug)"
+// @Param        source     query     string  false  "Фильтр по источнику"  Enums(oddsapi, manual, custom)
+// @Param        status     query     string  false  "Фильтр по статусу"  Enums(upcoming, live, settled, cancelled)
+// @Param        league_id  query     int     false  "Фильтр по чемпионату (id)"
+// @Param        q          query     string  false  "Поиск по названию события"
+// @Param        page       query     int     false  "Номер страницы (с 1)"  default(1)
 // @Success      200     {object}  eventsResponse
 // @Failure      400     {object}  errorResponse
 // @Failure      500     {object}  errorResponse
@@ -115,6 +133,12 @@ func (h *EventHandler) List(c *gin.Context) {
 		return
 	}
 
+	source := c.Query("source")
+	if source != "" && !isValidEventSource(source) {
+		respondError(c, http.StatusBadRequest, "validation_error", "Неверный источник события")
+		return
+	}
+
 	page := 1
 	if raw := c.Query("page"); raw != "" {
 		if p, err := strconv.Atoi(raw); err == nil && p > 0 {
@@ -122,11 +146,24 @@ func (h *EventHandler) List(c *gin.Context) {
 		}
 	}
 
+	// league_id опционален: nil, если параметр пуст/невалиден (но не 0/негатив).
+	var leagueID *int64
+	if raw := c.Query("league_id"); raw != "" {
+		lid, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || lid <= 0 {
+			respondError(c, http.StatusBadRequest, "validation_error", "Неверный идентификатор чемпионата")
+			return
+		}
+		leagueID = &lid
+	}
+
 	filter := repository.EventFilter{
-		Sport:  c.Query("sport"),
-		Status: domain.EventStatus(status),
-		Query:  c.Query("q"),
-		Page:   page,
+		Sport:    c.Query("sport"),
+		Source:   domain.EventSource(source),
+		Status:   domain.EventStatus(status),
+		LeagueID: leagueID,
+		Query:    c.Query("q"),
+		Page:     page,
 	}
 
 	events, err := h.events.ListEvents(c.Request.Context(), filter)
@@ -182,6 +219,15 @@ func isValidEventStatus(status string) bool {
 	return false
 }
 
+// isValidEventSource проверяет, что строка — один из известных источников события.
+func isValidEventSource(source string) bool {
+	switch domain.EventSource(source) {
+	case domain.SourceOddsAPI, domain.SourceManual, domain.SourceCustom:
+		return true
+	}
+	return false
+}
+
 func toEventDTO(e service.EventWithMarkets) eventDTO {
 	markets := make([]marketDTO, 0, len(e.Markets))
 	for _, m := range e.Markets {
@@ -229,4 +275,35 @@ func toOutcomeDTO(o domain.Outcome) outcomeDTO {
 		Odds:   o.Odds,
 		Result: result,
 	}
+}
+
+// ListLeagues — публичный список чемпионатов с опциональным фильтром по sport_slug
+// (GET /leagues?sport_slug=). Используется фильтром ленты событий.
+//
+// @Summary      Чемпионаты
+// @Description  Список чемпионатов (лиг) для фильтра ленты. Параметр sport_slug опционален.
+// @Tags         events
+// @Produce      json
+// @Param        sport_slug  query     string  false  "Фильтр по виду спорта (sport_slug)"
+// @Success      200  {object}  leaguesResponse
+// @Failure      500  {object}  errorResponse
+// @Router       /leagues [get]
+func (h *EventHandler) ListLeagues(c *gin.Context) {
+	leagues, err := h.events.ListLeagues(c.Request.Context(), c.Query("sport_slug"))
+	if err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	items := make([]leagueDTO, 0, len(leagues))
+	for _, l := range leagues {
+		items = append(items, leagueDTO{
+			ID:        l.ID,
+			Name:      l.Name,
+			SportSlug: l.SportSlug,
+		})
+	}
+	respondJSON(c, http.StatusOK, leaguesResponse{Items: items})
 }

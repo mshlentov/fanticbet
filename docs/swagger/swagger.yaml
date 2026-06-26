@@ -1,5 +1,66 @@
 basePath: /api/v1
 definitions:
+  handler.adjustRequest:
+    properties:
+      amount:
+        type: integer
+      reason:
+        type: string
+    required:
+    - amount
+    - reason
+    type: object
+  handler.adjustResponse:
+    properties:
+      balance:
+        type: integer
+    type: object
+  handler.adminLeagueDTO:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      sport_slug:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handler.adminLeaguesResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.adminLeagueDTO'
+        type: array
+    type: object
+  handler.adminMarketDTO:
+    properties:
+      id:
+        type: integer
+      outcomes:
+        items:
+          $ref: '#/definitions/handler.adminOutcomeDTO'
+        type: array
+      question:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    type: object
+  handler.adminOutcomeDTO:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      label:
+        type: string
+      odds:
+        type: number
+    type: object
   handler.betDTO:
     properties:
       created_at:
@@ -29,6 +90,155 @@ definitions:
         type: array
       page:
         type: integer
+    type: object
+  handler.createEventRequest:
+    properties:
+      market:
+        $ref: '#/definitions/handler.createMarketDTO'
+      starts_at:
+        type: string
+      title:
+        type: string
+    required:
+    - market
+    - starts_at
+    - title
+    type: object
+  handler.createEventResponse:
+    properties:
+      id:
+        type: integer
+      market:
+        $ref: '#/definitions/handler.adminMarketDTO'
+      source:
+        type: string
+      starts_at:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  handler.createLeagueRequest:
+    properties:
+      name:
+        type: string
+      sport_slug:
+        type: string
+    required:
+    - name
+    - sport_slug
+    type: object
+  handler.createMarketDTO:
+    properties:
+      outcomes:
+        items:
+          $ref: '#/definitions/handler.createOutcomeDTO'
+        type: array
+      question:
+        type: string
+    required:
+    - outcomes
+    type: object
+  handler.createMatchRequest:
+    properties:
+      away:
+        type: string
+      home:
+        type: string
+      league_id:
+        minimum: 1
+        type: integer
+      markets:
+        items:
+          $ref: '#/definitions/handler.matchMarketDTO'
+        type: array
+      starts_at:
+        type: string
+      title:
+        type: string
+    required:
+    - away
+    - home
+    - league_id
+    - markets
+    - starts_at
+    - title
+    type: object
+  handler.createOutcomeDTO:
+    properties:
+      label:
+        type: string
+      odds:
+        type: string
+    required:
+    - label
+    - odds
+    type: object
+  handler.editEventRequest:
+    properties:
+      outcomes:
+        items:
+          $ref: '#/definitions/handler.editOutcomeDTO'
+        type: array
+      question:
+        type: string
+      starts_at:
+        type: string
+      status:
+        description: 'единственное допустимое значение: "cancelled"'
+        type: string
+      title:
+        type: string
+    type: object
+  handler.editLeagueRequest:
+    properties:
+      name:
+        type: string
+      sport_slug:
+        type: string
+    type: object
+  handler.editMatchOutcomeDTO:
+    properties:
+      id:
+        minimum: 1
+        type: integer
+      odds:
+        type: string
+    required:
+    - id
+    type: object
+  handler.editMatchRequest:
+    properties:
+      away:
+        type: string
+      home:
+        type: string
+      league_id:
+        type: integer
+      outcomes:
+        items:
+          $ref: '#/definitions/handler.editMatchOutcomeDTO'
+        type: array
+      starts_at:
+        type: string
+      status:
+        description: 'единственное допустимое значение: "cancelled"'
+        type: string
+      title:
+        type: string
+    type: object
+  handler.editOutcomeDTO:
+    properties:
+      id:
+        minimum: 1
+        type: integer
+      label:
+        type: string
+      odds:
+        type: string
+    required:
+    - id
     type: object
   handler.errorBody:
     properties:
@@ -106,6 +316,22 @@ definitions:
       won_bets:
         type: integer
     type: object
+  handler.leagueDTO:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      sport_slug:
+        type: string
+    type: object
+  handler.leaguesResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.leagueDTO'
+        type: array
+    type: object
   handler.loginRequest:
     properties:
       email:
@@ -132,6 +358,50 @@ definitions:
         type: string
       type:
         type: string
+    type: object
+  handler.matchMarketDTO:
+    properties:
+      line:
+        description: NUMERIC(6,2) строкой; только для TOTALS
+        type: string
+      outcomes:
+        items:
+          $ref: '#/definitions/handler.matchOutcomeDTO'
+        type: array
+      type:
+        type: string
+    required:
+    - outcomes
+    - type
+    type: object
+  handler.matchOutcomeDTO:
+    properties:
+      code:
+        type: string
+      label:
+        type: string
+      odds:
+        type: string
+    required:
+    - code
+    - label
+    - odds
+    type: object
+  handler.matchScoresRequest:
+    properties:
+      away:
+        minimum: 0
+        type: integer
+      home:
+        minimum: 0
+        type: integer
+    type: object
+  handler.matchStatusRequest:
+    properties:
+      status:
+        type: string
+    required:
+    - status
     type: object
   handler.meResponse:
     properties:
@@ -204,6 +474,14 @@ definitions:
     - display_name
     - email
     - password
+    type: object
+  handler.settleRequest:
+    properties:
+      winning_outcome_id:
+        minimum: 1
+        type: integer
+    required:
+    - winning_outcome_id
     type: object
   handler.sportsResponse:
     properties:
@@ -309,11 +587,567 @@ info:
   title: FanticBet API
   version: "1.0"
 paths:
+  /admin/events:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт кастомное событие (source='custom') с одним CUSTOM-рынком
+        и исходами в одной транзакции.
+      parameters:
+      - description: Параметры события
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createEventRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.createEventResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Создать кастомное событие
+      tags:
+      - admin
+  /admin/events/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Правит title/starts_at/question/коэффициенты исходов или отменяет
+        событие (status='cancelled' → void ставок). Только для source='custom', status='upcoming'.
+      parameters:
+      - description: ID события
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Поля для обновления
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.editEventRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Редактировать кастомное событие
+      tags:
+      - admin
+  /admin/events/{id}/settle:
+    post:
+      consumes:
+      - application/json
+      description: 'Рассчитывает кастомное событие по выбранному победившему исходу:
+        выигрыш — выплата, проигрыш — списание, рынок → settled.'
+      parameters:
+      - description: ID события
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID победившего исхода
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.settleRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Рассчитать кастомное событие
+      tags:
+      - admin
+  /admin/leagues:
+    get:
+      description: Список чемпионатов (лиг). Параметр sport_slug опционален.
+      parameters:
+      - description: Фильтр по виду спорта (sport_slug)
+        in: query
+        name: sport_slug
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.adminLeaguesResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Список чемпионатов
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: 'Создаёт чемпионат (лигу): {name, sport_slug}. Дубликаты (name,
+        sport_slug) допустимы — различаются по id.'
+      parameters:
+      - description: Параметры чемпионата
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createLeagueRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.adminLeagueDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Создать чемпионат
+      tags:
+      - admin
+  /admin/leagues/{id}:
+    delete:
+      description: Удаляет чемпионат. Если к нему привязаны события — 409 conflict.
+      parameters:
+      - description: ID чемпионата
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Удалить чемпионат
+      tags:
+      - admin
+    patch:
+      consumes:
+      - application/json
+      description: Правит name и/или sport_slug чемпионата. Оба поля опциональны.
+      parameters:
+      - description: ID чемпионата
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Поля для обновления
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.editLeagueRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Редактировать чемпионат
+      tags:
+      - admin
+  /admin/matches:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт матч (source='manual') с командами, ссылкой на чемпионат
+        и рынками ML/TOTALS с коэффициентами в одной транзакции. Расчёт — по введённому
+        позже счёту.
+      parameters:
+      - description: Параметры матча
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createMatchRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.createEventResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Создать спортивный матч
+      tags:
+      - admin
+  /admin/matches/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Правит title/starts_at/home/away/league_id и коэффициенты исходов
+        или отменяет матч (status='cancelled' → void ставок). Только для source='manual',
+        status='upcoming'.
+      parameters:
+      - description: ID матча
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Поля для обновления
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.editMatchRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Редактировать матч
+      tags:
+      - admin
+  /admin/matches/{id}/scores:
+    post:
+      consumes:
+      - application/json
+      description: Вводит финальный счёт {home, away} и запускает расчёт ML+TOTALS
+        (SettleEvent по scores). Только для source='manual', status upcoming/live,
+        пока счёт не введён.
+      parameters:
+      - description: ID матча
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Финальный счёт
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.matchScoresRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Ввести счёт и рассчитать матч
+      tags:
+      - admin
+  /admin/matches/{id}/status:
+    post:
+      consumes:
+      - application/json
+      description: 'Ручной перевод upcoming → live (рынки → suspended, ставки закрываются).
+        Единственное поддерживаемое значение status: live.'
+      parameters:
+      - description: ID матча
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Целевой статус
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.matchStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Перевести статус матча
+      tags:
+      - admin
+  /admin/users/{id}/adjust:
+    post:
+      consumes:
+      - application/json
+      description: Меняет баланс пользователя на amount (может быть отрицательным)
+        в транзакции с FOR UPDATE. reason пишется в лог сервера.
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Сумма и причина
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.adjustRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.adjustResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Скорректировать баланс
+      tags:
+      - admin
   /auth/{provider}/callback:
     get:
-      description: Вызывается провайдером после авторизации. Возвращает access-токен
-        и устанавливает refresh-cookie. Swagger "Try it out" здесь не работает — эндпоинт
-        вызывается браузером, а не напрямую.
+      description: Вызывается провайдером после авторизации. Ставит refresh-cookie
+        и редиректит браузер в SPA (302). Swagger "Try it out" здесь не работает —
+        эндпоинт вызывается браузером, а не напрямую.
       parameters:
       - description: 'Провайдер: yandex или vk'
         in: path
@@ -331,22 +1165,8 @@ paths:
         required: true
         type: string
       responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.tokenResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handler.errorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/handler.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handler.errorResponse'
+        "302":
+          description: Found
       summary: OAuth — callback от провайдера
       tags:
       - auth
@@ -548,12 +1368,20 @@ paths:
       - bets
   /events:
     get:
-      description: Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/q
+      description: Страница событий с рынками и текущими коэффициентами. Фильтры sport/status/league_id/q
         опциональны.
       parameters:
       - description: Фильтр по виду спорта (sport_slug)
         in: query
         name: sport
+        type: string
+      - description: Фильтр по источнику
+        enum:
+        - oddsapi
+        - manual
+        - custom
+        in: query
+        name: source
         type: string
       - description: Фильтр по статусу
         enum:
@@ -564,6 +1392,10 @@ paths:
         in: query
         name: status
         type: string
+      - description: Фильтр по чемпионату (id)
+        in: query
+        name: league_id
+        type: integer
       - description: Поиск по названию события
         in: query
         name: q
@@ -667,6 +1499,29 @@ paths:
       summary: Лидерборд
       tags:
       - leaderboard
+  /leagues:
+    get:
+      description: Список чемпионатов (лиг) для фильтра ленты. Параметр sport_slug
+        опционален.
+      parameters:
+      - description: Фильтр по виду спорта (sport_slug)
+        in: query
+        name: sport_slug
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.leaguesResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Чемпионаты
+      tags:
+      - events
   /me:
     get:
       description: Возвращает профиль текущего пользователя и баланс кошелька.

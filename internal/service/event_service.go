@@ -22,20 +22,23 @@ type EventWithMarkets struct {
 }
 
 // EventService — чтение каталога событий: список видов спорта, лента событий с
-// рынками/коэффициентами и одно событие. Только чтение из локальной БД (данные
-// наполняют воркеры EventSync/OddsSync), бизнес-правил ставок здесь нет.
+// рынками/коэффициентами, одно событие и список чемпионатов (для фильтра ленты).
+// Только чтение из локальной БД (данные наполняют воркеры EventSync/OddsSync и
+// админ), бизнес-правил ставок здесь нет.
 type EventService struct {
 	events   repository.EventRepository
 	markets  repository.MarketRepository
 	outcomes repository.OutcomeRepository
+	leagues  repository.LeagueRepository
 }
 
 func NewEventService(
 	events repository.EventRepository,
 	markets repository.MarketRepository,
 	outcomes repository.OutcomeRepository,
+	leagues repository.LeagueRepository,
 ) *EventService {
-	return &EventService{events: events, markets: markets, outcomes: outcomes}
+	return &EventService{events: events, markets: markets, outcomes: outcomes, leagues: leagues}
 }
 
 // ListSports возвращает виды спорта, по которым есть события в БД. 'custom'
@@ -138,4 +141,14 @@ func (s *EventService) GetEvent(ctx context.Context, id int64) (EventWithMarkets
 	}
 
 	return EventWithMarkets{Event: event, Markets: mwos}, nil
+}
+
+// ListLeagues возвращает чемпионаты, опционально отфильтрованные по sport_slug
+// (пустая строка — без фильтра). Публичный каталог для фильтра ленты (GET /leagues).
+func (s *EventService) ListLeagues(ctx context.Context, sportSlug string) ([]domain.League, error) {
+	leagues, err := s.leagues.List(ctx, sportSlug)
+	if err != nil {
+		return nil, fmt.Errorf("EventService.ListLeagues: %w", err)
+	}
+	return leagues, nil
 }

@@ -34,6 +34,14 @@ func (f *fakeEventRepo) Create(_ context.Context, e domain.Event) (int64, error)
 func (f *fakeEventRepo) UpdateDetails(context.Context, int64, *string, *time.Time) error {
 	return nil
 }
+// UpdateMatch/UpdateStatus — заглушки для M8: воркеры эти методы не используют,
+// но интерфейс EventRepository их требует.
+func (f *fakeEventRepo) UpdateMatch(context.Context, int64, *string, *string, *int64, *string, *time.Time) error {
+	return nil
+}
+func (f *fakeEventRepo) UpdateStatus(context.Context, int64, domain.EventStatus) error {
+	return nil
+}
 func (f *fakeEventRepo) GetByID(context.Context, int64) (domain.Event, error) {
 	return domain.Event{}, nil
 }

@@ -10,10 +10,12 @@ import {
   settleEvent,
 } from "../api/admin";
 import type { AdminOutcomeInput } from "../api/admin";
-import { ApiError } from "../api/client";
 import type { Event, EventStatus } from "../api/types";
 import { useToast } from "../hooks/useToast";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
+import { LeaguesSection } from "../components/admin/LeaguesSection";
+import { MatchesSection } from "../components/admin/MatchesSection";
+import { errMessage } from "../lib/apiError";
 import { absTime, fmtCoins, fmtOdds } from "../lib/format";
 
 // Ключ списка кастомных событий — вынесен, чтобы инвалидировать после мутаций.
@@ -25,29 +27,53 @@ const STATUS_FILTERS: { value: EventStatus; label: string }[] = [
   { value: "cancelled", label: "Отменённые" },
 ];
 
-// errMessage — текст ошибки API для тоста (единый формат бэкенда).
-function errMessage(err: unknown, fallback: string): string {
-  return err instanceof ApiError ? err.message : fallback;
-}
+// Вкладки админки (M8): спортивные матчи, чемпионаты, кастомные события, баланс.
+type AdminTab = "matches" | "leagues" | "custom" | "balance";
 
-// AdminPage — управление кастомными событиями (создание, расчёт, отмена) и
-// ручная корректировка баланса. Список кастомных событий берём из публичной
-// ленты с фильтром sport='custom' (так бэкенд помечает кастомные события).
+const TABS: { value: AdminTab; label: string }[] = [
+  { value: "matches", label: "Матчи" },
+  { value: "leagues", label: "Чемпионаты" },
+  { value: "custom", label: "Кастомные события" },
+  { value: "balance", label: "Баланс" },
+];
+
+// AdminPage — единая панель администратора: спортивные матчи (manual) с
+// рынками ML/TOTALS и расчётом по счёту, чемпионаты (leagues), кастомные
+// события (custom) и ручная корректировка баланса. Разделено на вкладки.
 export function AdminPage() {
+  const [tab, setTab] = useState<AdminTab>("matches");
+
   return (
     <section style={{ maxWidth: 760, margin: "0 auto" }}>
       <h1 style={{ margin: "0 0 4px", fontSize: 21, fontWeight: 800, letterSpacing: "-0.02em" }}>
         Админ-панель
       </h1>
       <p style={{ margin: "0 0 18px", fontSize: 13, color: "var(--text3)" }}>
-        Кастомные события и корректировки баланса
+        Матчи, чемпионаты, кастомные события и корректировки баланса
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <CreateEventForm />
-        <AdjustBalanceForm />
-        <CustomEventsList />
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            className={`fb-chip${tab === t.value ? " is-active" : ""}`}
+            onClick={() => setTab(t.value)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {tab === "matches" && <MatchesSection />}
+      {tab === "leagues" && <LeaguesSection />}
+      {tab === "custom" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <CreateEventForm />
+          <CustomEventsList />
+        </div>
+      )}
+      {tab === "balance" && <AdjustBalanceForm />}
     </section>
   );
 }

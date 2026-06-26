@@ -8,6 +8,7 @@
 - OAuth в первой итерации — только Google; VK/Яндекс вынесены в backlog (см. M1-доп).
 - Тестовые задачи помечены *(тест)* и опциональны, но рекомендованы для критичных мест (кошелёк, ставки, settlement).
 - Старт по видам спорта: football + basketball; источник коэффициентов — один букмекер из конфига.
+- **Текущая веха — M9 «UX-правки: профиль, история ставок, лента»**: точечные UX-правки, выявленные при ручной проверке продукта (выход из профиля, названия событий в истории ставок, скрытие завершённых из ленты, раздел «Популярные события» под ручным управлением админа). M8 (ручное управление событиями) завершён на бэкенде, остались фронтовые подзадачи. См. архитектуру §11 и вехи M8/M9 ниже.
 
 ---
 
@@ -227,6 +228,94 @@
 
 ---
 
+## M8. Ручное управление событиями (текущая веха)
+
+**Контекст.** Odds-API временно отключён (воркеры не стартуют без `ODDS_API_KEY` — уже сделано в `cmd/server/main.go`). Источником событий, коэффициентов и результатов становится админ. Архитектура и схема `events → markets → outcomes` не меняются; `SettlementService.SettleEvent(settled, scores)` уже умеет считать ML и TOTALS по счёту — переиспользуется без правок (см. `docs/architecture.md` §11). Веха разбита на три блока: чемпионаты, спортивные матчи и пауза Odds-API.
+
+### Миграции
+- [x] 🟢 Миграция `leagues` (`id, name, sport_slug, created_at, updated_at`) + индекс по `sport_slug` — миграция `000011_create_leagues`
+- [x] 🟢 Миграция `events`: добавить колонки `league_id BIGINT REFERENCES leagues(id)` (NULLable) + индекс по `league_id`; `league_name` остаётся (денормализация). Новое значение `source='manual'` — без миграции (TEXT). — миграция `000012_add_events_league_id`
+- [x] 🟢 Down-миграции для обеих (откат `league_id`/индекса и таблицы `leagues`)
+
+### Domain и константы
+- [x] 🟢 Domain `League { ID, Name, SportSlug, CreatedAt, UpdatedAt }` в `internal/domain`
+- [x] 🟢 Константа `SourceManual EventSource = "manual"` рядом с `SourceOddsAPI`/`SourceCustom`
+
+### Чемпионаты (leagues)
+- [x] 🟡 `LeagueRepository`: `Create`, `GetByID`, `List(sportSlug)`, `Update`, `Delete` (проверка «нет привязанных событий» — на уровне репозитория или сервиса)
+- [x] 🟡 `AdminService`: методы `CreateLeague` / `UpdateLeague` / `DeleteLeague` (с проверкой ссылок из `events.league_id` → 409 при наличии) / `ListLeagues`
+- [x] 🟢 Handlers: `GET /admin/leagues` (с фильтром `sport_slug`), `POST /admin/leagues`, `PATCH /admin/leagues/:id`, `DELETE /admin/leagues/:id` + DTO с валидацией
+- [x] 🟢 Публичный `GET /leagues?sport_slug=` (для фильтра в ленте) — опционально отдельной задачей
+
+### Спортивные матчи (source='manual')
+- [x] 🔴 `AdminService.CreateMatch` — **одна транзакция**: создать `event` (`source='manual'`, `home/away`, `league_id`+`league_name`, `sport_slug`, `starts_at`, `status='upcoming'`) → рынки (`ML` обязателен; `TOTALS` с `line`) → исходы (`home/draw/away` для ML; `over/under` для TOTALS) с коэффициентами. Валидация: ≥1 рынок ML, кэфы > 1.0, `league_id` существует.
+- [x] 🟡 `AdminService.EditMatch` — правка `title/starts_at/home/away/league_id` и коэффициентов исходов; только для `source='manual'` и `status='upcoming'`
+- [x] 🟡 `AdminService.CancelMatch` — делегирует в `SettlementService.SettleEvent(cancelled)` (void ставок), как `CancelEvent` в M6
+- [x] 🔴 `AdminService.SetMatchScores(home, away)` — главное отличие от custom: вызывает `events.UpdateStatusAndScores` + `SettlementService.SettleEvent(eventID, 'settled', {home,away})`. Авторасчёт ML+TOTALS по счёту. Только для `source='manual'`, `status IN (upcoming, live)`, счёт ещё не введён.
+- [x] 🟢 `AdminService.SetMatchStatus('live')` — ручной перевод `upcoming → live` (рынки → `suspended`). До ввода счёта.
+- [x] 🟢 Handlers: `POST /admin/matches`, `PATCH /admin/matches/:id`, `POST /admin/matches/:id/scores`, `POST /admin/matches/:id/status` + DTO
+- [x] 🟢 Маршруты в `main.go` под группой `/admin` (за `AuthRequired`+`AdminRequired`)
+
+### Лента событий (правки)
+- [x] 🟡 `GET /events`: добавить фильтр `league_id` (в `EventRepository.ListWithFilters`). Матчи `source='manual'` уже видны — отдельной выборки не нужно.
+- [x] 🟢 Swagger-аннотации на новых admin-эндпоинтах; перегенерация спеки (`swag init`)
+
+### Пауза Odds-API
+- [x] 🟢 Воркеры не стартуют без `ODDS_API_KEY` (уже реализовано в `cmd/server/main.go`)
+- [x] 🟢 Проверить, что при пустом ключе приложение стартует без ошибок и логирует пропуск воркеров (smoke-тест) — проверено вручную: с пустым `ODDS_API_KEY` приложение стартует, в логе есть `ODDS_API_KEY is empty, skipping Odds-API workers`, ошибок `Failed`/`panic`/`fatal` нет, `/health` → 200
+
+### Фронтенд
+- [x] 🟡 Раздел админки: CRUD чемпионатов
+- [x] 🔴 Форма создания матча (команды, лига, рынки ML/TOTALS с кэфами) + список матчей + ввод счёта → кнопка «рассчитать»
+- [x] 🟡 Фильтр ленты по чемпионату (`/events?league_id=`)
+- [ ] 🟡 *(тест)* Полный цикл: создать матч → поставить → ввести счёт → сверить выплаты (won/lost/void) по ML и TOTALS
+- [ ] 🟡 *(тест)* Отмена матча до ввода счёта → возврат всех ставок
+
+### Тесты (критичные места)
+- [x] 🟡 *(тест)* `SetMatchScores` корректно считает ML (победа/ничья) и TOTALS (over/under/push) через переиспользуемый `SettlementService`
+- [x] 🟢 *(тест)* Нельзя удалить лигу с привязанными событиями (409)
+
+### Backlog M8 (после основной части)
+- [ ] 🟢 Загрузка коэффициентов сразу для нескольких событий (массовый ввод в админке)
+- [ ] 🟢 Редактирование коэффициентов после `starts_at` (закрытие рынка вручную → `suspended`)
+- [ ] 🟢 Дедлайн ставок по матчу: разрешать/запрещать ставки после `starts_at` через отдельный флаг (сейчас `BettingService` проверяет `starts_at > now()`)
+
+---
+
+## M9. UX-правки: профиль, история ставок, лента
+
+**Контекст.** Веха собирает точечные UX-правки, выявленные при ручной проверке продукта: (1) невозможность выйти из аккаунта — механизм logout готов, но не подключён к UI; (2) история ставок показывает `Событие #id` вместо названий — `betDTO` не обогащается данными события/исхода; (3) завершённые события засоряют ленту; (4) нет раздела «Популярные события» под ручным управлением админа. Первые три задачи — локальные правки; четвёртая объёмнее и разбита по слоям. Бэкенд-правки затрагивают `betDTO`, фильтр ленты (`EventFilter`) и схему `events`.
+
+### Задача 1. Выход из профиля (фронт)
+- [ ] 🟢 Дропдаун на аватаре в шапке (`web/src/components/Header.tsx`): клик по `.fb-avatar` открывает меню с пунктами «Профиль» (→ `/me/bets`) и «Выйти». Сейчас клик по аватару сразу ведёт на `/me/bets`, меню нет.
+- [ ] 🟢 Пункт «Выйти» вызывает готовый `logout` из `useAuth()` (`web/src/context/AuthContext.tsx` — механизм logout уже реализован: `authApi.logout()` + очистка состояния, но в UI его не вызывает ни одна кнопка).
+- [ ] 🟢 Аналогичный пункт выхода в мобильной навигации (`web/src/components/MobileNav.tsx`) для авторизованного пользователя.
+- [ ] 🟢 После выхода — редирект на главную (`/`); закрытие дропдауна по клику вне и по Esc. Компонент-дропдаун reusable (одна реализация для шапки и моб. навигации).
+
+### Задача 2. Названия события и исхода в истории ставок
+- [ ] 🟡 Бэкенд: обогатить `betDTO` (`internal/handler/bet.go`) — добавить `event_title`, `event_home`, `event_away`, `outcome_label`, опционально `market_type`. Сейчас DTO отдаёт только голые `event_id`/`outcome_id` (показывается `Событие #42`, см. `MyBetsPage.tsx:173` и `UserProfilePage.tsx:170`).
+- [ ] 🟡 Реализация обогащения: либо JOIN в `BetRepository.ListByUser` (`bets → events / outcomes / markets`), либо batch-догрузка событий/исходов по спискам id в сервисе (по образцу `EventService.ListEvents`). Затронуты оба хендлера — `bet.go` (`/me/bets`) и `stats.go` (`/users/:id/bets`), т.к. делят один `toBetDTO`.
+- [ ] 🟢 Фронт: отобразить реальное название события (команды/`title`) и `outcome.label` в строках ставки на `/me/bets` (`MyBetsPage.tsx:173-178`) и `/users/:id` (`UserProfilePage.tsx:170-175`) + тип `Bet` в `web/src/api/types.ts:76-86`.
+- [ ] 🟢 Swagger-аннотации + перегенерация спеки (`swag init`).
+
+### Задача 3. Убрать завершённые события из ленты
+- [ ] 🟢 Бэкенд: `GET /events` без явного `?status=` не должен отдавать `settled` и `cancelled`. Сейчас в `EventRepository.ListWithFilters` затравка `WHERE TRUE` пропускает все статусы (`internal/repository/event.go`). Решение — при пустом `f.Status` добавлять `status NOT IN ('settled','cancelled')` (или расширить `EventFilter` полем исключений). Явный `?status=settled` должен работать как раньше (по требованию).
+- [ ] 🟢 Фронт: убрать на ленте фильтры «Все» / «Предстоящие» / «Live» / Завершенные.
+
+### Задача 4. Раздел «Популярные события»
+> **Архитектура:** метка «популярное» — колонка `events.featured_at TIMESTAMPTZ` (NULL = обычное; заполнено = популярное). Одно поле даёт и флаг, и порядок: `ORDER BY featured_at DESC` → последним добавленное сверху. Управление — toggle из админки (`featured_at = now()` / `NULL`). Без отдельной таблицы и без `sort_order`.
+
+- [ ] 🟢 Миграция `000013_add_events_featured_at`: `ALTER TABLE events ADD COLUMN featured_at TIMESTAMPTZ` + частичный индекс `CREATE INDEX idx_events_featured ON events(featured_at DESC) WHERE featured_at IS NOT NULL`. Down-миграция откатывает колонку и индекс (по образцу `000012_add_events_league_id`).
+- [ ] 🟢 Domain: добавить `FeaturedAt *time.Time` в `domain.Event` (`internal/domain/event.go`).
+- [ ] 🟡 Repository (`internal/repository/event.go`): дописать `featured_at` в `eventColumns` и `scanEvent`; метод `SetFeatured(ctx, eventID int64, featured bool)` (`now()` / `NULL`); в `EventFilter` поле `FeaturedOnly bool` → `WHERE featured_at IS NOT NULL` + `ORDER BY featured_at DESC` (порядок популярных).
+- [ ] 🟡 `AdminService.SetFeatured(ctx, eventID, featured)` с проверкой существования события (404). По образцу `SetMatchStatus`.
+- [ ] 🟢 Handler: `POST /admin/events/:id/featured` (тело `{featured: bool}`) + DTO с валидацией; маршрут в `main.go` под `/admin`. Swagger-аннотации.
+- [ ] 🟢 Публичный доступ: `GET /events?featured=true` через `EventFilter.FeaturedOnly` (переиспользует `ListWithFilters`/`ListEvents`/`eventDTO`). Поле `is_featured` (computed из `featured_at != null`) в публичный `eventDTO` — опционально, для бейджа.
+- [ ] 🟡 Фронт: секция «Популярные события» над основной лентой на `/` (`EventsPage.tsx`) — отдельный `useQuery` (`featured=true`), своя сетка из тех же `EventCard`, заголовок секции. Скрывается, если популярных нет.
+- [ ] 🟡 Фронт-админка: управление популярными — кнопка «в популярное/убрать» в списке событий/матчей админки (вызов `POST /admin/events/:id/featured`).
+
+---
+
 ## M7. Полировка и деплой
 
 ### Надёжность
@@ -249,6 +338,7 @@
 
 ## Backlog (за рамками MVP — архитектура готова)
 
+- [ ] **Возврат к Odds-API** (после M8): прописать `ODDS_API_KEY`; доработать `EventSyncWorker`, чтобы он создавал/подтягивал `leagues` по `sport_slug`+`name` из ответа API и проставлял `events.league_id`. Схема и `SettlementService` уже поддерживают это (см. архитектуру §11.6).
 - [ ] Экспрессы: таблица `bet_legs`, `bets.odds` = произведение
 - [ ] Live-ставки: WebSocket Odds-API (`channels=odds,scores,status`) + SSE/WS на фронт
 - [ ] Еженедельное пополнение / «банкротство»: новый тип транзакции + cron-воркер
