@@ -187,6 +187,7 @@ func main() {
 			admin.POST("/events", adminH.CreateEvent)
 			admin.PATCH("/events/:id", adminH.EditEvent)
 			admin.POST("/events/:id/settle", adminH.SettleEvent)
+			admin.POST("/events/:id/featured", adminH.SetFeatured)
 			admin.POST("/users/:id/adjust", adminH.AdjustBalance)
 
 			// Чемпионаты (лиги) — справочник для событий (M8).

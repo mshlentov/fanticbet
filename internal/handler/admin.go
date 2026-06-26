@@ -202,6 +202,13 @@ type matchStatusRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
+// setFeaturedRequest — тело POST /admin/events/:id/featured. *bool с required,
+// чтобы отличить отсутствие поля от явного false (иначе featured=false
+// невозможно отправить через required-валидацию обычного bool).
+type setFeaturedRequest struct {
+	Featured *bool `json:"featured" binding:"required"`
+}
+
 // --- Хендлеры ---
 
 // CreateEvent — создать кастомное событие (POST /admin/events).
@@ -779,6 +786,45 @@ func (h *AdminHandler) SetMatchStatus(c *gin.Context) {
 	if err := h.admin.SetMatchStatus(c.Request.Context(), eventID, service.MatchStatusInput{
 		Status: domain.EventStatus(req.Status),
 	}); err != nil {
+		if !mapDomainErr(c, err) {
+			respondInternalError(c)
+		}
+		return
+	}
+
+	respondJSON(c, http.StatusNoContent, nil)
+}
+
+// SetFeatured — пометить/снять событие как популярное (POST /admin/events/:id/featured).
+//
+// @Summary      Управление популярностью события
+// @Description  Помечает событие как «популярное» (featured=true) или снимает метку (featured=false). Работает для любого источника события.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      int                 true  "ID события"
+// @Param        body  body      setFeaturedRequest  true  "Флаг популярности"
+// @Success      204   {object}  nil
+// @Failure      400   {object}  errorResponse
+// @Failure      401   {object}  errorResponse
+// @Failure      403   {object}  errorResponse
+// @Failure      404   {object}  errorResponse
+// @Failure      500   {object}  errorResponse
+// @Router       /admin/events/{id}/featured [post]
+func (h *AdminHandler) SetFeatured(c *gin.Context) {
+	eventID, ok := parseAdminID(c, "id")
+	if !ok {
+		return // parseAdminID уже отправил ответ
+	}
+
+	var req setFeaturedRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "validation_error", "Неверные данные запроса")
+		return
+	}
+
+	if err := h.admin.SetFeatured(c.Request.Context(), eventID, *req.Featured); err != nil {
 		if !mapDomainErr(c, err) {
 			respondInternalError(c)
 		}

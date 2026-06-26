@@ -7,12 +7,14 @@ import {
   adjustBalance,
   cancelEvent,
   createCustomEvent,
+  setEventFeatured,
   settleEvent,
 } from "../api/admin";
 import type { AdminOutcomeInput } from "../api/admin";
 import type { Event, EventStatus } from "../api/types";
 import { useToast } from "../hooks/useToast";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
+import { FeaturedToggle } from "../components/admin/FeaturedToggle";
 import { LeaguesSection } from "../components/admin/LeaguesSection";
 import { MatchesSection } from "../components/admin/MatchesSection";
 import { errMessage } from "../lib/apiError";
@@ -435,7 +437,19 @@ function EventAdminCard({ event }: { event: Event }) {
     onError: (err) => toast(errMessage(err, "Не удалось отменить событие"), "err"),
   });
 
-  const busy = settle.isPending || cancel.isPending;
+  // Управление популярностью: тоггл по текущему is_featured. Инвалидируем и админ-
+  // список, и публичную ленту (секция «Популярные»).
+  const featured = useMutation({
+    mutationFn: () => setEventFeatured(event.id, !event.is_featured),
+    onSuccess: () => {
+      toast(event.is_featured ? "Убрано из популярных" : "Добавлено в популярные", "ok");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (err) => toast(errMessage(err, "Не удалось изменить популярность"), "err"),
+  });
+
+  const busy = settle.isPending || cancel.isPending || featured.isPending;
   const isUpcoming = event.status === "upcoming";
 
   const handleSettle = () => {
@@ -464,7 +478,10 @@ function EventAdminCard({ event }: { event: Event }) {
             {market?.question ? ` · ${market.question}` : ""}
           </div>
         </div>
-        <StatusBadge status={event.status} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <FeaturedToggle isFeatured={event.is_featured} disabled={busy} onToggle={() => featured.mutate()} />
+          <StatusBadge status={event.status} />
+        </div>
       </div>
 
       {outcomes.length > 0 && (

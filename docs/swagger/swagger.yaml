@@ -272,6 +272,9 @@ definitions:
         type: string
       id:
         type: integer
+      is_featured:
+        description: computed из featured_at != null (для бейджа/секции)
+        type: boolean
       league_name:
         type: string
       markets:
@@ -485,6 +488,13 @@ definitions:
     - email
     - password
     type: object
+  handler.setFeaturedRequest:
+    properties:
+      featured:
+        type: boolean
+    required:
+    - featured
+    type: object
   handler.settleRequest:
     properties:
       winning_outcome_id:
@@ -688,6 +698,54 @@ paths:
       security:
       - BearerAuth: []
       summary: Редактировать кастомное событие
+      tags:
+      - admin
+  /admin/events/{id}/featured:
+    post:
+      consumes:
+      - application/json
+      description: Помечает событие как «популярное» (featured=true) или снимает метку
+        (featured=false). Работает для любого источника события.
+      parameters:
+      - description: ID события
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Флаг популярности
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.setFeaturedRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Управление популярностью события
       tags:
       - admin
   /admin/events/{id}/settle:
@@ -1406,6 +1464,10 @@ paths:
         in: query
         name: league_id
         type: integer
+      - description: Только популярные события (сортировка по дате добавления в популярное)
+        in: query
+        name: featured
+        type: boolean
       - description: Поиск по названию события
         in: query
         name: q

@@ -305,14 +305,14 @@
 ### Задача 4. Раздел «Популярные события»
 > **Архитектура:** метка «популярное» — колонка `events.featured_at TIMESTAMPTZ` (NULL = обычное; заполнено = популярное). Одно поле даёт и флаг, и порядок: `ORDER BY featured_at DESC` → последним добавленное сверху. Управление — toggle из админки (`featured_at = now()` / `NULL`). Без отдельной таблицы и без `sort_order`.
 
-- [ ] 🟢 Миграция `000013_add_events_featured_at`: `ALTER TABLE events ADD COLUMN featured_at TIMESTAMPTZ` + частичный индекс `CREATE INDEX idx_events_featured ON events(featured_at DESC) WHERE featured_at IS NOT NULL`. Down-миграция откатывает колонку и индекс (по образцу `000012_add_events_league_id`).
-- [ ] 🟢 Domain: добавить `FeaturedAt *time.Time` в `domain.Event` (`internal/domain/event.go`).
-- [ ] 🟡 Repository (`internal/repository/event.go`): дописать `featured_at` в `eventColumns` и `scanEvent`; метод `SetFeatured(ctx, eventID int64, featured bool)` (`now()` / `NULL`); в `EventFilter` поле `FeaturedOnly bool` → `WHERE featured_at IS NOT NULL` + `ORDER BY featured_at DESC` (порядок популярных).
-- [ ] 🟡 `AdminService.SetFeatured(ctx, eventID, featured)` с проверкой существования события (404). По образцу `SetMatchStatus`.
-- [ ] 🟢 Handler: `POST /admin/events/:id/featured` (тело `{featured: bool}`) + DTO с валидацией; маршрут в `main.go` под `/admin`. Swagger-аннотации.
-- [ ] 🟢 Публичный доступ: `GET /events?featured=true` через `EventFilter.FeaturedOnly` (переиспользует `ListWithFilters`/`ListEvents`/`eventDTO`). Поле `is_featured` (computed из `featured_at != null`) в публичный `eventDTO` — опционально, для бейджа.
-- [ ] 🟡 Фронт: секция «Популярные события» над основной лентой на `/` (`EventsPage.tsx`) — отдельный `useQuery` (`featured=true`), своя сетка из тех же `EventCard`, заголовок секции. Скрывается, если популярных нет.
-- [ ] 🟡 Фронт-админка: управление популярными — кнопка «в популярное/убрать» в списке событий/матчей админки (вызов `POST /admin/events/:id/featured`).
+- [x] 🟢 Миграция `000013_add_events_featured_at`: `ALTER TABLE events ADD COLUMN featured_at TIMESTAMPTZ` + частичный индекс `CREATE INDEX idx_events_featured ON events(featured_at DESC) WHERE featured_at IS NOT NULL`. Down-миграция откатывает колонку и индекс (по образцу `000012_add_events_league_id`).
+- [x] 🟢 Domain: добавить `FeaturedAt *time.Time` в `domain.Event` (`internal/domain/event.go`).
+- [x] 🟡 Repository (`internal/repository/event.go`): дописать `featured_at` в `eventColumns` и `scanEvent`; метод `SetFeatured(ctx, eventID int64, featured bool)` (`now()` / `NULL`); в `EventFilter` поле `FeaturedOnly bool` → `WHERE featured_at IS NOT NULL` + `ORDER BY featured_at DESC` (порядок популярных).
+- [x] 🟡 `AdminService.SetFeatured(ctx, eventID, featured)` с проверкой существования события (404). По образцу `SetMatchStatus`.
+- [x] 🟢 Handler: `POST /admin/events/:id/featured` (тело `{featured: bool}`) + DTO с валидацией; маршрут в `main.go` под `/admin`. Swagger-аннотации.
+- [x] 🟢 Публичный доступ: `GET /events?featured=true` через `EventFilter.FeaturedOnly` (переиспользует `ListWithFilters`/`ListEvents`/`eventDTO`). Поле `is_featured` (computed из `featured_at != null`) в публичный `eventDTO` — опционально, для бейджа.
+- [x] 🟡 Фронт: секция «Популярные события» над основной лентой на `/` (`EventsPage.tsx`) — отдельный `useQuery` (`featured=true`), своя сетка из тех же `EventCard`, заголовок секции. Скрывается, если популярных нет.
+- [x] 🟡 Фронт-админка: управление популярными — кнопка «в популярное/убрать» в списке событий/матчей админки (вызов `POST /admin/events/:id/featured`).
 
 ---
 

@@ -38,6 +38,12 @@ export function settleEvent(id: number, winningOutcomeId: number): Promise<unkno
   return api.post(`/admin/events/${id}/settle`, { winning_outcome_id: winningOutcomeId });
 }
 
+// setEventFeatured — пометить событие популярным (featured=true) или снять метку.
+// Работает для любого источника события (manual/custom/oddsapi).
+export function setEventFeatured(id: number, featured: boolean): Promise<unknown> {
+  return api.post(`/admin/events/${id}/featured`, { featured });
+}
+
 // AdjustBalanceResponse — новый баланс после корректировки.
 export type AdjustBalanceResponse = {
   balance: number;

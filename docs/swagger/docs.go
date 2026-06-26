@@ -157,6 +157,79 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/events/{id}/featured": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Помечает событие как «популярное» (featured=true) или снимает метку (featured=false). Работает для любого источника события.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Управление популярностью события",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID события",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Флаг популярности",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.setFeaturedRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/events/{id}/settle": {
             "post": {
                 "security": [
@@ -1241,6 +1314,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "description": "Только популярные события (сортировка по дате добавления в популярное)",
+                        "name": "featured",
+                        "in": "query"
+                    },
+                    {
                         "type": "string",
                         "description": "Поиск по названию события",
                         "name": "q",
@@ -2168,6 +2247,10 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "is_featured": {
+                    "description": "computed из featured_at != null (для бейджа/секции)",
+                    "type": "boolean"
+                },
                 "league_name": {
                     "type": "string"
                 },
@@ -2487,6 +2570,17 @@ const docTemplate = `{
                 "password": {
                     "type": "string",
                     "minLength": 8
+                }
+            }
+        },
+        "handler.setFeaturedRequest": {
+            "type": "object",
+            "required": [
+                "featured"
+            ],
+            "properties": {
+                "featured": {
+                    "type": "boolean"
                 }
             }
         },

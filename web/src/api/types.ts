@@ -58,6 +58,7 @@ export type Event = {
   away: string | null;
   starts_at: string;
   status: EventStatus;
+  is_featured: boolean; // computed из featured_at != null (бейдж/секция «Популярные»)
   markets: Market[];
 };
 
