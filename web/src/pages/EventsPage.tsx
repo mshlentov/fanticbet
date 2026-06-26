@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
-import { listEvents, listSports } from "../api/events";
+import { listEvents, listLeagues, listSports } from "../api/events";
 import type { Event } from "../api/types";
 import { OutcomeButton } from "../components/OutcomeButton";
 import { SportIcon } from "../components/icons";
@@ -22,13 +22,31 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 export function EventsPage() {
   const [sport, setSport] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [leagueId, setLeagueId] = useState("");
 
   const sportsQuery = useQuery({ queryKey: ["sports"], queryFn: listSports });
-  const eventsQuery = useQuery({
-    queryKey: ["events", { sport, status: statusFilter }],
-    queryFn: () =>
-      listEvents({ sport: sport || undefined, status: statusFilter || undefined }),
+  // Каталог чемпионатов для выбранного вида спорта (для фильтра ленты).
+  const leaguesQuery = useQuery({
+    queryKey: ["leagues", sport],
+    queryFn: () => listLeagues(sport || undefined),
   });
+  const eventsQuery = useQuery({
+    queryKey: ["events", { sport, status: statusFilter, leagueId }],
+    queryFn: () =>
+      listEvents({
+        sport: sport || undefined,
+        status: statusFilter || undefined,
+        league_id: leagueId ? Number(leagueId) : undefined,
+      }),
+  });
+
+  // Смена вида спорта сбрасывает выбранный чемпионат (лиги привязаны к спорту).
+  const handleSport = (value: string) => {
+    setSport(value);
+    setLeagueId("");
+  };
+
+  const leagues = leaguesQuery.data?.items ?? [];
 
   // Сортировка ленты: live → upcoming → settled, внутри — по времени старта.
   const events = useMemo(() => {
@@ -72,7 +90,7 @@ export function EventsPage() {
             key={c.value || "all"}
             type="button"
             className={`fb-chip${sport === c.value ? " is-active" : ""}`}
-            onClick={() => setSport(c.value)}
+            onClick={() => handleSport(c.value)}
           >
             {c.label}
           </button>
@@ -88,6 +106,25 @@ export function EventsPage() {
             {c.label}
           </button>
         ))}
+        {leagues.length > 0 && (
+          <>
+            <span className="fb-chip-divider" />
+            <select
+              className="fb-input"
+              value={leagueId}
+              onChange={(e) => setLeagueId(e.target.value)}
+              style={{ height: 34, padding: "0 10px", fontSize: 13, width: "auto" }}
+              aria-label="Фильтр по чемпионату"
+            >
+              <option value="">Все чемпионаты</option>
+              {leagues.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
 
       {eventsQuery.isPending && <LoadingState />}

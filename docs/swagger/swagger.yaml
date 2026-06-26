@@ -1375,6 +1375,14 @@ paths:
         in: query
         name: sport
         type: string
+      - description: Фильтр по источнику
+        enum:
+        - oddsapi
+        - manual
+        - custom
+        in: query
+        name: source
+        type: string
       - description: Фильтр по статусу
         enum:
         - upcoming

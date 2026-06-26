@@ -71,6 +71,20 @@ export type SportsResponse = {
   sports: string[];
 };
 
+// League — чемпионат (M8). Публичный каталог (GET /leagues) отдаёт id/name/
+// sport_slug; admin-список (GET /admin/leagues) дополнительно содержит даты.
+export type League = {
+  id: number;
+  name: string;
+  sport_slug: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type LeaguesResponse = {
+  items: League[];
+};
+
 export type BetStatus = "pending" | "won" | "lost" | "void";
 
 export type Bet = {

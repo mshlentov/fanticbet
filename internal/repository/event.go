@@ -21,6 +21,7 @@ const eventColumns = `id, source, external_id, sport_slug, league_id, league_nam
 // поля и nil-указатели означают «без фильтра»; Page начинается с 1.
 type EventFilter struct {
 	Sport    string             // фильтр по sport_slug; "" — без фильтра
+	Source   domain.EventSource // фильтр по источнику (oddsapi/manual/custom); "" — без фильтра
 	Status   domain.EventStatus // фильтр по статусу; "" — без фильтра
 	LeagueID *int64             // фильтр по чемпионату; nil — без фильтра
 	Query    string             // поиск по title (ILIKE); "" — без фильтра
@@ -274,6 +275,10 @@ func (r *EventRepositoryImpl) ListWithFilters(ctx context.Context, f EventFilter
 	if f.Sport != "" {
 		args = append(args, f.Sport)
 		conds = append(conds, fmt.Sprintf("sport_slug = $%d", len(args)))
+	}
+	if f.Source != "" {
+		args = append(args, f.Source)
+		conds = append(conds, fmt.Sprintf("source = $%d", len(args)))
 	}
 	if f.Status != "" {
 		args = append(args, f.Status)

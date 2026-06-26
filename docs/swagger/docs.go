@@ -1213,6 +1213,17 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "oddsapi",
+                            "manual",
+                            "custom"
+                        ],
+                        "type": "string",
+                        "description": "Фильтр по источнику",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
                             "upcoming",
                             "live",
                             "settled",

@@ -117,6 +117,7 @@ func (h *EventHandler) Sports(c *gin.Context) {
 // @Tags         events
 // @Produce      json
 // @Param        sport      query     string  false  "Фильтр по виду спорта (sport_slug)"
+// @Param        source     query     string  false  "Фильтр по источнику"  Enums(oddsapi, manual, custom)
 // @Param        status     query     string  false  "Фильтр по статусу"  Enums(upcoming, live, settled, cancelled)
 // @Param        league_id  query     int     false  "Фильтр по чемпионату (id)"
 // @Param        q          query     string  false  "Поиск по названию события"
@@ -129,6 +130,12 @@ func (h *EventHandler) List(c *gin.Context) {
 	status := c.Query("status")
 	if status != "" && !isValidEventStatus(status) {
 		respondError(c, http.StatusBadRequest, "validation_error", "Неверный статус события")
+		return
+	}
+
+	source := c.Query("source")
+	if source != "" && !isValidEventSource(source) {
+		respondError(c, http.StatusBadRequest, "validation_error", "Неверный источник события")
 		return
 	}
 
@@ -152,6 +159,7 @@ func (h *EventHandler) List(c *gin.Context) {
 
 	filter := repository.EventFilter{
 		Sport:    c.Query("sport"),
+		Source:   domain.EventSource(source),
 		Status:   domain.EventStatus(status),
 		LeagueID: leagueID,
 		Query:    c.Query("q"),
@@ -206,6 +214,15 @@ func (h *EventHandler) Get(c *gin.Context) {
 func isValidEventStatus(status string) bool {
 	switch domain.EventStatus(status) {
 	case domain.EventUpcoming, domain.EventLive, domain.EventSettled, domain.EventCancelled:
+		return true
+	}
+	return false
+}
+
+// isValidEventSource проверяет, что строка — один из известных источников события.
+func isValidEventSource(source string) bool {
+	switch domain.EventSource(source) {
+	case domain.SourceOddsAPI, domain.SourceManual, domain.SourceCustom:
 		return true
 	}
 	return false
