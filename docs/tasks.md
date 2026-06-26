@@ -299,8 +299,8 @@
 - [x] 🟢 Swagger-аннотации + перегенерация спеки (`swag init`).
 
 ### Задача 3. Убрать завершённые события из ленты
-- [ ] 🟢 Бэкенд: `GET /events` без явного `?status=` не должен отдавать `settled` и `cancelled`. Сейчас в `EventRepository.ListWithFilters` затравка `WHERE TRUE` пропускает все статусы (`internal/repository/event.go`). Решение — при пустом `f.Status` добавлять `status NOT IN ('settled','cancelled')` (или расширить `EventFilter` полем исключений). Явный `?status=settled` должен работать как раньше (по требованию).
-- [ ] 🟢 Фронт: убрать на ленте фильтры «Все» / «Предстоящие» / «Live» / Завершенные.
+- [x] 🟢 Бэкенд: `GET /events` без явного `?status=` не должен отдавать `settled` и `cancelled`. Сейчас в `EventRepository.ListWithFilters` затравка `WHERE TRUE` пропускает все статусы (`internal/repository/event.go`). Решение — при пустом `f.Status` добавлять `status NOT IN ('settled','cancelled')` (или расширить `EventFilter` полем исключений). Явный `?status=settled` должен работать как раньше (по требованию).
+- [x] 🟢 Фронт: убрать на ленте фильтр Завершенные.
 
 ### Задача 4. Раздел «Популярные события»
 > **Архитектура:** метка «популярное» — колонка `events.featured_at TIMESTAMPTZ` (NULL = обычное; заполнено = популярное). Одно поле даёт и флаг, и порядок: `ORDER BY featured_at DESC` → последним добавленное сверху. Управление — toggle из админки (`featured_at = now()` / `NULL`). Без отдельной таблицы и без `sort_order`.

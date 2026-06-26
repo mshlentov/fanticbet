@@ -14,7 +14,6 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "", label: "Все" },
   { value: "upcoming", label: "Предстоящие" },
   { value: "live", label: "Live" },
-  { value: "settled", label: "Завершённые" },
 ];
 
 // EventsPage — главная лента событий: фильтры по виду спорта и статусу, сетка

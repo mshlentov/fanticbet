@@ -283,6 +283,11 @@ func (r *EventRepositoryImpl) ListWithFilters(ctx context.Context, f EventFilter
 	if f.Status != "" {
 		args = append(args, f.Status)
 		conds = append(conds, fmt.Sprintf("status = $%d", len(args)))
+	} else {
+		// Без явного фильтра лента не показывает завершённые/отменённые события —
+		// они только засоряют выдачу. Явный ?status=settled по-прежнему работает.
+		args = append(args, domain.EventSettled, domain.EventCancelled)
+		conds = append(conds, fmt.Sprintf("status NOT IN ($%d, $%d)", len(args)-1, len(args)))
 	}
 	if f.LeagueID != nil {
 		args = append(args, *f.LeagueID)
