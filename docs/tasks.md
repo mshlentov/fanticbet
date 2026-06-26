@@ -8,6 +8,7 @@
 - OAuth в первой итерации — только Google; VK/Яндекс вынесены в backlog (см. M1-доп).
 - Тестовые задачи помечены *(тест)* и опциональны, но рекомендованы для критичных мест (кошелёк, ставки, settlement).
 - Старт по видам спорта: football + basketball; источник коэффициентов — один букмекер из конфига.
+- **Текущая веха — M8 «Ручное управление событиями»**: интеграция с Odds-API временно приостановлена (воркеры не стартуют без `ODDS_API_KEY`), события и коэффициенты вводит админ. См. архитектуру §11 и веху M8 ниже.
 
 ---
 
@@ -227,6 +228,60 @@
 
 ---
 
+## M8. Ручное управление событиями (текущая веха)
+
+**Контекст.** Odds-API временно отключён (воркеры не стартуют без `ODDS_API_KEY` — уже сделано в `cmd/server/main.go`). Источником событий, коэффициентов и результатов становится админ. Архитектура и схема `events → markets → outcomes` не меняются; `SettlementService.SettleEvent(settled, scores)` уже умеет считать ML и TOTALS по счёту — переиспользуется без правок (см. `docs/architecture.md` §11). Веха разбита на три блока: чемпионаты, спортивные матчи и пауза Odds-API.
+
+### Миграции
+- [x] 🟢 Миграция `leagues` (`id, name, sport_slug, created_at, updated_at`) + индекс по `sport_slug` — миграция `000011_create_leagues`
+- [x] 🟢 Миграция `events`: добавить колонки `league_id BIGINT REFERENCES leagues(id)` (NULLable) + индекс по `league_id`; `league_name` остаётся (денормализация). Новое значение `source='manual'` — без миграции (TEXT). — миграция `000012_add_events_league_id`
+- [x] 🟢 Down-миграции для обеих (откат `league_id`/индекса и таблицы `leagues`)
+
+### Domain и константы
+- [ ] 🟢 Domain `League { ID, Name, SportSlug, CreatedAt, UpdatedAt }` в `internal/domain`
+- [ ] 🟢 Константа `SourceManual EventSource = "manual"` рядом с `SourceOddsAPI`/`SourceCustom`
+
+### Чемпионаты (leagues)
+- [ ] 🟡 `LeagueRepository`: `Create`, `GetByID`, `List(sportSlug)`, `Update`, `Delete` (проверка «нет привязанных событий» — на уровне репозитория или сервиса)
+- [ ] 🟡 `AdminService`: методы `CreateLeague` / `UpdateLeague` / `DeleteLeague` (с проверкой ссылок из `events.league_id` → 409 при наличии) / `ListLeagues`
+- [ ] 🟢 Handlers: `GET /admin/leagues` (с фильтром `sport_slug`), `POST /admin/leagues`, `PATCH /admin/leagues/:id`, `DELETE /admin/leagues/:id` + DTO с валидацией
+- [ ] 🟢 Публичный `GET /leagues?sport_slug=` (для фильтра в ленте) — опционально отдельной задачей
+
+### Спортивные матчи (source='manual')
+- [ ] 🔴 `AdminService.CreateMatch` — **одна транзакция**: создать `event` (`source='manual'`, `home/away`, `league_id`+`league_name`, `sport_slug`, `starts_at`, `status='upcoming'`) → рынки (`ML` обязателен; `TOTALS` с `line`) → исходы (`home/draw/away` для ML; `over/under` для TOTALS) с коэффициентами. Валидация: ≥1 рынок ML, кэфы > 1.0, `league_id` существует.
+- [ ] 🟡 `AdminService.EditMatch` — правка `title/starts_at/home/away/league_id` и коэффициентов исходов; только для `source='manual'` и `status='upcoming'`
+- [ ] 🟡 `AdminService.CancelMatch` — делегирует в `SettlementService.SettleEvent(cancelled)` (void ставок), как `CancelEvent` в M6
+- [ ] 🔴 `AdminService.SetMatchScores(home, away)` — главное отличие от custom: вызывает `events.UpdateStatusAndScores` + `SettlementService.SettleEvent(eventID, 'settled', {home,away})`. Авторасчёт ML+TOTALS по счёту. Только для `source='manual'`, `status IN (upcoming, live)`, счёт ещё не введён.
+- [ ] 🟢 `AdminService.SetMatchStatus('live')` — ручной перевод `upcoming → live` (рынки → `suspended`). До ввода счёта.
+- [ ] 🟢 Handlers: `POST /admin/matches`, `PATCH /admin/matches/:id`, `POST /admin/matches/:id/scores`, `POST /admin/matches/:id/status` + DTO
+- [ ] 🟢 Маршруты в `main.go` под группой `/admin` (за `AuthRequired`+`AdminRequired`)
+
+### Лента событий (правки)
+- [ ] 🟡 `GET /events`: добавить фильтр `league_id` (в `EventRepository.ListWithFilters`). Матчи `source='manual'` уже видны — отдельной выборки не нужно.
+- [ ] 🟢 Swagger-аннотации на новых admin-эндпоинтах; перегенерация спеки (`swag init`)
+
+### Пауза Odds-API
+- [x] 🟢 Воркеры не стартуют без `ODDS_API_KEY` (уже реализовано в `cmd/server/main.go`)
+- [ ] 🟢 Проверить, что при пустом ключе приложение стартует без ошибок и логирует пропуск воркеров (smoke-тест)
+
+### Фронтенд
+- [ ] 🟡 Раздел админки: CRUD чемпионатов
+- [ ] 🔴 Форма создания матча (команды, лига, рынки ML/TOTALS с кэфами) + список матчей + ввод счёта → кнопка «рассчитать»
+- [ ] 🟡 Фильтр ленты по чемпионату (`/events?league_id=`)
+- [ ] 🟡 *(тест)* Полный цикл: создать матч → поставить → ввести счёт → сверить выплаты (won/lost/void) по ML и TOTALS
+- [ ] 🟡 *(тест)* Отмена матча до ввода счёта → возврат всех ставок
+
+### Тесты (критичные места)
+- [ ] 🟡 *(тест)* `SetMatchScores` корректно считает ML (победа/ничья) и TOTALS (over/under/push) через переиспользуемый `SettlementService`
+- [ ] 🟢 *(тест)* Нельзя удалить лигу с привязанными событиями (409)
+
+### Backlog M8 (после основной части)
+- [ ] 🟢 Загрузка коэффициентов сразу для нескольких событий (массовый ввод в админке)
+- [ ] 🟢 Редактирование коэффициентов после `starts_at` (закрытие рынка вручную → `suspended`)
+- [ ] 🟢 Дедлайн ставок по матчу: разрешать/запрещать ставки после `starts_at` через отдельный флаг (сейчас `BettingService` проверяет `starts_at > now()`)
+
+---
+
 ## M7. Полировка и деплой
 
 ### Надёжность
@@ -249,6 +304,7 @@
 
 ## Backlog (за рамками MVP — архитектура готова)
 
+- [ ] **Возврат к Odds-API** (после M8): прописать `ODDS_API_KEY`; доработать `EventSyncWorker`, чтобы он создавал/подтягивал `leagues` по `sport_slug`+`name` из ответа API и проставлял `events.league_id`. Схема и `SettlementService` уже поддерживают это (см. архитектуру §11.6).
 - [ ] Экспрессы: таблица `bet_legs`, `bets.odds` = произведение
 - [ ] Live-ставки: WebSocket Odds-API (`channels=odds,scores,status`) + SSE/WS на фронт
 - [ ] Еженедельное пополнение / «банкротство»: новый тип транзакции + cron-воркер
