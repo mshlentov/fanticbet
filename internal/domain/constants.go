@@ -33,12 +33,15 @@ const (
 )
 
 // Источник события. Совпадает со значениями колонки events.source.
-// 'oddsapi' — событие из Odds-API (есть external_id); 'custom' — кастомное
-// событие, созданное админом (external_id = NULL).
+// 'oddsapi' — событие из Odds-API (есть external_id); 'manual' — спортивный
+// матч, заведённый админом вручную (веха M8, external_id = NULL, рынки ML/TOTALS
+// с кэфами и расчёт по введённому счёту); 'custom' — произвольное событие,
+// созданное админом (external_id = NULL, рынок CUSTOM).
 type EventSource string
 
 const (
 	SourceOddsAPI EventSource = "oddsapi"
+	SourceManual  EventSource = "manual" // спортивный матч, заведённый админом (M8)
 	SourceCustom  EventSource = "custom"
 )
 

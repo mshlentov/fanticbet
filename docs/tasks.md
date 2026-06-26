@@ -238,8 +238,8 @@
 - [x] 🟢 Down-миграции для обеих (откат `league_id`/индекса и таблицы `leagues`)
 
 ### Domain и константы
-- [ ] 🟢 Domain `League { ID, Name, SportSlug, CreatedAt, UpdatedAt }` в `internal/domain`
-- [ ] 🟢 Константа `SourceManual EventSource = "manual"` рядом с `SourceOddsAPI`/`SourceCustom`
+- [x] 🟢 Domain `League { ID, Name, SportSlug, CreatedAt, UpdatedAt }` в `internal/domain`
+- [x] 🟢 Константа `SourceManual EventSource = "manual"` рядом с `SourceOddsAPI`/`SourceCustom`
 
 ### Чемпионаты (leagues)
 - [ ] 🟡 `LeagueRepository`: `Create`, `GetByID`, `List(sportSlug)`, `Update`, `Delete` (проверка «нет привязанных событий» — на уровне репозитория или сервиса)
