@@ -35,7 +35,10 @@ type placeBetRequest struct {
 }
 
 // betDTO — ставка в ответе. Odds — decimal, чтобы не терять точность NUMERIC(8,3)
-// при сериализации; SettledAt — *time.Time (NULL, пока ставка pending).
+// при сериализации; SettledAt — *time.Time (NULL, пока ставка pending). Поля
+// event_title/event_home/event_away/outcome_label/market_type обогащают строку
+// истории ставок, чтобы показывать название события и исхода вместо «Событие #id»
+// (заполняются в истории /me/bets и /users/:id/bets; для ответа POST /bets пусты).
 type betDTO struct {
 	ID              int64           `json:"id"`
 	OutcomeID       int64           `json:"outcome_id"`
@@ -46,6 +49,11 @@ type betDTO struct {
 	Status          string          `json:"status"`
 	SettledAt       *time.Time      `json:"settled_at"`
 	CreatedAt       time.Time       `json:"created_at"`
+	EventTitle      string          `json:"event_title"`
+	EventHome       *string         `json:"event_home"`
+	EventAway       *string         `json:"event_away"`
+	OutcomeLabel    string          `json:"outcome_label"`
+	MarketType      string          `json:"market_type"`
 }
 
 // placeBetResponse — результат размещения: ставка и баланс после списания.
@@ -148,7 +156,7 @@ func (h *BetHandler) List(c *gin.Context) {
 	// nil-срез отдаём как пустой массив, чтобы клиент всегда получал [], а не null.
 	items := make([]betDTO, 0, len(bets))
 	for _, b := range bets {
-		items = append(items, toBetDTO(b))
+		items = append(items, toBetDTODetailed(b))
 	}
 	respondJSON(c, http.StatusOK, betsResponse{Page: page, Items: items})
 }
@@ -174,4 +182,16 @@ func toBetDTO(b domain.Bet) betDTO {
 		SettledAt:       b.SettledAt,
 		CreatedAt:       b.CreatedAt,
 	}
+}
+
+// toBetDTODetailed дополняет базовый betDTO названиями события и исхода —
+// для истории ставок (/me/bets, /users/:id/bets).
+func toBetDTODetailed(b domain.BetWithDetails) betDTO {
+	dto := toBetDTO(b.Bet)
+	dto.EventTitle = b.EventTitle
+	dto.EventHome = b.EventHome
+	dto.EventAway = b.EventAway
+	dto.OutcomeLabel = b.OutcomeLabel
+	dto.MarketType = string(b.MarketType)
+	return dto
 }

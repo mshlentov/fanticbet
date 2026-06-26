@@ -221,6 +221,48 @@ a {
   place-items: center;
 }
 
+/* ---------- Меню пользователя (дропдаун на аватаре) ---------- */
+.fb-usermenu {
+  position: relative;
+  display: inline-flex;
+}
+.fb-menu {
+  position: absolute;
+  right: 0;
+  min-width: 160px;
+  z-index: 60;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fb-menu-down {
+  top: calc(100% + 8px);
+}
+.fb-menu-up {
+  bottom: calc(100% + 8px);
+}
+.fb-menu-item {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text2);
+  transition: all 0.15s;
+}
+.fb-menu-item:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
 /* ---------- Кнопки ---------- */
 .fb-btn {
   padding: 13px;
@@ -621,6 +663,12 @@ a {
 }
 .fb-mobile-nav button.is-active {
   color: var(--accent);
+}
+.fb-mobile-usermenu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
 }
 
 /* ---------- Адаптив ---------- */

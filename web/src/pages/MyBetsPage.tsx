@@ -8,7 +8,7 @@ import { useAuth } from "../hooks/useAuth";
 import { CoinIcon } from "../components/icons";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { absTime, fmtCoins, fmtOdds } from "../lib/format";
-import { BET_STATUS_META, betResultLine } from "../lib/bet";
+import { BET_STATUS_META, betEventTitle, betOutcomeLabel, betResultLine } from "../lib/bet";
 
 type Tab = "active" | "done" | "tx";
 
@@ -171,10 +171,10 @@ function BetRow({ bet }: { bet: Bet }) {
       </span>
       <div style={{ flex: 1, minWidth: 170 }}>
         <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em" }}>
-          Событие #{bet.event_id}
+          {betEventTitle(bet)}
         </div>
         <div style={{ fontSize: 12.5, color: "var(--text2)", marginTop: 2 }}>
-          Исход #{bet.outcome_id} <span style={{ color: "var(--text3)" }}>· кф {fmtOdds(bet.odds)}</span>
+          {betOutcomeLabel(bet)} <span style={{ color: "var(--text3)" }}>· кф {fmtOdds(bet.odds)}</span>
         </div>
       </div>
       <div style={{ textAlign: "right" }}>

@@ -2,10 +2,11 @@ import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth";
 import { NAV_ITEMS, isNavActive } from "./nav";
+import { UserMenu } from "./UserMenu";
 
 // MobileNav — нижняя навигация для узких экранов (видна через CSS @media).
 export function MobileNav() {
-  const { user } = useAuth();
+  const { status, user } = useAuth();
   const location = useLocation();
   const visibleNav = NAV_ITEMS.filter(
     (n) => !n.adminOnly || user?.role === "admin",
@@ -30,6 +31,13 @@ export function MobileNav() {
           {n.label}
         </Link>
       ))}
+
+      {/* Авторизованному — аватар с меню «Профиль» / «Выйти» (раскрытие вверх). */}
+      {status === "authenticated" && user && (
+        <div className="fb-mobile-usermenu">
+          <UserMenu displayName={user.display_name} placement="up" />
+        </div>
+      )}
     </nav>
   );
 }

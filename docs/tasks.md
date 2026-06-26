@@ -287,32 +287,32 @@
 **Контекст.** Веха собирает точечные UX-правки, выявленные при ручной проверке продукта: (1) невозможность выйти из аккаунта — механизм logout готов, но не подключён к UI; (2) история ставок показывает `Событие #id` вместо названий — `betDTO` не обогащается данными события/исхода; (3) завершённые события засоряют ленту; (4) нет раздела «Популярные события» под ручным управлением админа. Первые три задачи — локальные правки; четвёртая объёмнее и разбита по слоям. Бэкенд-правки затрагивают `betDTO`, фильтр ленты (`EventFilter`) и схему `events`.
 
 ### Задача 1. Выход из профиля (фронт)
-- [ ] 🟢 Дропдаун на аватаре в шапке (`web/src/components/Header.tsx`): клик по `.fb-avatar` открывает меню с пунктами «Профиль» (→ `/me/bets`) и «Выйти». Сейчас клик по аватару сразу ведёт на `/me/bets`, меню нет.
-- [ ] 🟢 Пункт «Выйти» вызывает готовый `logout` из `useAuth()` (`web/src/context/AuthContext.tsx` — механизм logout уже реализован: `authApi.logout()` + очистка состояния, но в UI его не вызывает ни одна кнопка).
-- [ ] 🟢 Аналогичный пункт выхода в мобильной навигации (`web/src/components/MobileNav.tsx`) для авторизованного пользователя.
-- [ ] 🟢 После выхода — редирект на главную (`/`); закрытие дропдауна по клику вне и по Esc. Компонент-дропдаун reusable (одна реализация для шапки и моб. навигации).
+- [x] 🟢 Дропдаун на аватаре в шапке (`web/src/components/Header.tsx`): клик по `.fb-avatar` открывает меню с пунктами «Профиль» (→ `/me/bets`) и «Выйти». Сейчас клик по аватару сразу ведёт на `/me/bets`, меню нет.
+- [x] 🟢 Пункт «Выйти» вызывает готовый `logout` из `useAuth()` (`web/src/context/AuthContext.tsx` — механизм logout уже реализован: `authApi.logout()` + очистка состояния, но в UI его не вызывает ни одна кнопка).
+- [x] 🟢 Аналогичный пункт выхода в мобильной навигации (`web/src/components/MobileNav.tsx`) для авторизованного пользователя.
+- [x] 🟢 После выхода — редирект на главную (`/`); закрытие дропдауна по клику вне и по Esc. Компонент-дропдаун reusable (одна реализация для шапки и моб. навигации).
 
 ### Задача 2. Названия события и исхода в истории ставок
-- [ ] 🟡 Бэкенд: обогатить `betDTO` (`internal/handler/bet.go`) — добавить `event_title`, `event_home`, `event_away`, `outcome_label`, опционально `market_type`. Сейчас DTO отдаёт только голые `event_id`/`outcome_id` (показывается `Событие #42`, см. `MyBetsPage.tsx:173` и `UserProfilePage.tsx:170`).
-- [ ] 🟡 Реализация обогащения: либо JOIN в `BetRepository.ListByUser` (`bets → events / outcomes / markets`), либо batch-догрузка событий/исходов по спискам id в сервисе (по образцу `EventService.ListEvents`). Затронуты оба хендлера — `bet.go` (`/me/bets`) и `stats.go` (`/users/:id/bets`), т.к. делят один `toBetDTO`.
-- [ ] 🟢 Фронт: отобразить реальное название события (команды/`title`) и `outcome.label` в строках ставки на `/me/bets` (`MyBetsPage.tsx:173-178`) и `/users/:id` (`UserProfilePage.tsx:170-175`) + тип `Bet` в `web/src/api/types.ts:76-86`.
-- [ ] 🟢 Swagger-аннотации + перегенерация спеки (`swag init`).
+- [x] 🟡 Бэкенд: обогатить `betDTO` (`internal/handler/bet.go`) — добавить `event_title`, `event_home`, `event_away`, `outcome_label`, опционально `market_type`. Сейчас DTO отдаёт только голые `event_id`/`outcome_id` (показывается `Событие #42`, см. `MyBetsPage.tsx:173` и `UserProfilePage.tsx:170`).
+- [x] 🟡 Реализация обогащения: JOIN в `BetRepository.ListByUser` (`bets → events / outcomes / markets`) → новый `domain.BetWithDetails`. Затронуты оба хендлера — `bet.go` (`/me/bets`) и `stats.go` (`/users/:id/bets`) через общий `toBetDTODetailed`. Ответ `POST /bets` использует прежний `toBetDTO` (поля обогащения пусты).
+- [x] 🟢 Фронт: отобразить реальное название события (команды/`title`) и `outcome.label` в строках ставки на `/me/bets` и `/users/:id` (хелперы `betEventTitle`/`betOutcomeLabel` в `web/src/lib/bet.ts`) + поля в типе `Bet` (`web/src/api/types.ts`).
+- [x] 🟢 Swagger-аннотации + перегенерация спеки (`swag init`).
 
 ### Задача 3. Убрать завершённые события из ленты
-- [ ] 🟢 Бэкенд: `GET /events` без явного `?status=` не должен отдавать `settled` и `cancelled`. Сейчас в `EventRepository.ListWithFilters` затравка `WHERE TRUE` пропускает все статусы (`internal/repository/event.go`). Решение — при пустом `f.Status` добавлять `status NOT IN ('settled','cancelled')` (или расширить `EventFilter` полем исключений). Явный `?status=settled` должен работать как раньше (по требованию).
-- [ ] 🟢 Фронт: убрать на ленте фильтры «Все» / «Предстоящие» / «Live» / Завершенные.
+- [x] 🟢 Бэкенд: `GET /events` без явного `?status=` не должен отдавать `settled` и `cancelled`. Сейчас в `EventRepository.ListWithFilters` затравка `WHERE TRUE` пропускает все статусы (`internal/repository/event.go`). Решение — при пустом `f.Status` добавлять `status NOT IN ('settled','cancelled')` (или расширить `EventFilter` полем исключений). Явный `?status=settled` должен работать как раньше (по требованию).
+- [x] 🟢 Фронт: убрать на ленте фильтр Завершенные.
 
 ### Задача 4. Раздел «Популярные события»
 > **Архитектура:** метка «популярное» — колонка `events.featured_at TIMESTAMPTZ` (NULL = обычное; заполнено = популярное). Одно поле даёт и флаг, и порядок: `ORDER BY featured_at DESC` → последним добавленное сверху. Управление — toggle из админки (`featured_at = now()` / `NULL`). Без отдельной таблицы и без `sort_order`.
 
-- [ ] 🟢 Миграция `000013_add_events_featured_at`: `ALTER TABLE events ADD COLUMN featured_at TIMESTAMPTZ` + частичный индекс `CREATE INDEX idx_events_featured ON events(featured_at DESC) WHERE featured_at IS NOT NULL`. Down-миграция откатывает колонку и индекс (по образцу `000012_add_events_league_id`).
-- [ ] 🟢 Domain: добавить `FeaturedAt *time.Time` в `domain.Event` (`internal/domain/event.go`).
-- [ ] 🟡 Repository (`internal/repository/event.go`): дописать `featured_at` в `eventColumns` и `scanEvent`; метод `SetFeatured(ctx, eventID int64, featured bool)` (`now()` / `NULL`); в `EventFilter` поле `FeaturedOnly bool` → `WHERE featured_at IS NOT NULL` + `ORDER BY featured_at DESC` (порядок популярных).
-- [ ] 🟡 `AdminService.SetFeatured(ctx, eventID, featured)` с проверкой существования события (404). По образцу `SetMatchStatus`.
-- [ ] 🟢 Handler: `POST /admin/events/:id/featured` (тело `{featured: bool}`) + DTO с валидацией; маршрут в `main.go` под `/admin`. Swagger-аннотации.
-- [ ] 🟢 Публичный доступ: `GET /events?featured=true` через `EventFilter.FeaturedOnly` (переиспользует `ListWithFilters`/`ListEvents`/`eventDTO`). Поле `is_featured` (computed из `featured_at != null`) в публичный `eventDTO` — опционально, для бейджа.
-- [ ] 🟡 Фронт: секция «Популярные события» над основной лентой на `/` (`EventsPage.tsx`) — отдельный `useQuery` (`featured=true`), своя сетка из тех же `EventCard`, заголовок секции. Скрывается, если популярных нет.
-- [ ] 🟡 Фронт-админка: управление популярными — кнопка «в популярное/убрать» в списке событий/матчей админки (вызов `POST /admin/events/:id/featured`).
+- [x] 🟢 Миграция `000013_add_events_featured_at`: `ALTER TABLE events ADD COLUMN featured_at TIMESTAMPTZ` + частичный индекс `CREATE INDEX idx_events_featured ON events(featured_at DESC) WHERE featured_at IS NOT NULL`. Down-миграция откатывает колонку и индекс (по образцу `000012_add_events_league_id`).
+- [x] 🟢 Domain: добавить `FeaturedAt *time.Time` в `domain.Event` (`internal/domain/event.go`).
+- [x] 🟡 Repository (`internal/repository/event.go`): дописать `featured_at` в `eventColumns` и `scanEvent`; метод `SetFeatured(ctx, eventID int64, featured bool)` (`now()` / `NULL`); в `EventFilter` поле `FeaturedOnly bool` → `WHERE featured_at IS NOT NULL` + `ORDER BY featured_at DESC` (порядок популярных).
+- [x] 🟡 `AdminService.SetFeatured(ctx, eventID, featured)` с проверкой существования события (404). По образцу `SetMatchStatus`.
+- [x] 🟢 Handler: `POST /admin/events/:id/featured` (тело `{featured: bool}`) + DTO с валидацией; маршрут в `main.go` под `/admin`. Swagger-аннотации.
+- [x] 🟢 Публичный доступ: `GET /events?featured=true` через `EventFilter.FeaturedOnly` (переиспользует `ListWithFilters`/`ListEvents`/`eventDTO`). Поле `is_featured` (computed из `featured_at != null`) в публичный `eventDTO` — опционально, для бейджа.
+- [x] 🟡 Фронт: секция «Популярные события» над основной лентой на `/` (`EventsPage.tsx`) — отдельный `useQuery` (`featured=true`), своя сетка из тех же `EventCard`, заголовок секции. Скрывается, если популярных нет.
+- [x] 🟡 Фронт-админка: управление популярными — кнопка «в популярное/убрать» в списке событий/матчей админки (вызов `POST /admin/events/:id/featured`).
 
 ---
 

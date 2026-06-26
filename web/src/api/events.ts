@@ -7,6 +7,7 @@ export type EventsFilter = {
   status?: string;
   q?: string;
   league_id?: number;
+  featured?: boolean;
   page?: number;
 };
 
@@ -30,6 +31,7 @@ export function listEvents(filter: EventsFilter = {}): Promise<EventsPage> {
   if (filter.status) params.set("status", filter.status);
   if (filter.q) params.set("q", filter.q);
   if (filter.league_id) params.set("league_id", String(filter.league_id));
+  if (filter.featured) params.set("featured", "true");
   if (filter.page) params.set("page", String(filter.page));
 
   const qs = params.toString();

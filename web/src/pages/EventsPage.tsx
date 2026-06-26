@@ -14,7 +14,6 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "", label: "Все" },
   { value: "upcoming", label: "Предстоящие" },
   { value: "live", label: "Live" },
-  { value: "settled", label: "Завершённые" },
 ];
 
 // EventsPage — главная лента событий: фильтры по виду спорта и статусу, сетка
@@ -65,6 +64,8 @@ export function EventsPage() {
 
   return (
     <section>
+      <FeaturedSection />
+
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 16 }}>
         <h1 style={{ margin: 0, fontSize: 21, fontWeight: 800, letterSpacing: "-0.02em" }}>
           Лента событий
@@ -142,6 +143,35 @@ export function EventsPage() {
   );
 }
 
+// FeaturedSection — секция «Популярные события» над основной лентой. Отдельный
+// запрос (featured=true), своя сетка из тех же EventCard. Скрывается, если
+// популярных событий нет (или запрос ещё/не успешен) — чтобы не занимать место.
+function FeaturedSection() {
+  const featuredQuery = useQuery({
+    queryKey: ["events", "featured"],
+    queryFn: () => listEvents({ featured: true }),
+  });
+
+  const featured = featuredQuery.data?.items ?? [];
+  if (featured.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <span style={{ fontSize: 18 }}>⭐</span>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>
+          Популярные события
+        </h2>
+      </div>
+      <div className="fb-events-grid">
+        {featured.map((ev) => (
+          <EventCard key={ev.id} event={ev} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EventCard({ event }: { event: Event }) {
   const navigate = useNavigate();
   const isCustom = event.source === "custom" || !event.home || !event.away;
@@ -182,6 +212,11 @@ function EventCard({ event }: { event: Event }) {
         >
           {event.league_name ?? sportLabel(event.sport_slug)}
         </span>
+        {event.is_featured && (
+          <span title="Популярное" style={{ color: "var(--accent)", fontSize: 13, flexShrink: 0 }}>
+            ★
+          </span>
+        )}
         <StatusBadge status={event.status} startsAt={event.starts_at} />
       </div>
 

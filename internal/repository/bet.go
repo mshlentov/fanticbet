@@ -28,9 +28,11 @@ type BetRepository interface {
 	Create(ctx context.Context, b domain.Bet) (int64, error)
 	// GetByID возвращает ставку по id (domain.ErrNotFound, если нет).
 	GetByID(ctx context.Context, id int64) (domain.Bet, error)
-	// ListByUser возвращает страницу ставок пользователя (новые — первые).
-	// status == "" означает «без фильтра по статусу»; page начинается с 1.
-	ListByUser(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error)
+	// ListByUser возвращает страницу ставок пользователя (новые — первые),
+	// обогащённую названиями события и исхода (JOIN events/outcomes/markets) —
+	// для истории ставок. status == "" означает «без фильтра по статусу»; page
+	// начинается с 1.
+	ListByUser(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.BetWithDetails, error)
 	// ListPendingByOutcomes возвращает все pending-ставки на указанные исходы.
 	// Используется SettlementService: по результатам исходов рассчитывает ставки.
 	// Пустой список outcomeIDs → nil, nil (запрос не выполняется).
@@ -91,32 +93,43 @@ func (r *BetRepositoryImpl) GetByID(ctx context.Context, id int64) (domain.Bet, 
 }
 
 // ListByUser — история ставок пользователя с опциональным фильтром по статусу.
-// Сортировка по давности (created_at DESC, id DESC) совпадает с индексом
-// idx_bets_user. Пустой status не добавляет WHERE (все статусы).
-func (r *BetRepositoryImpl) ListByUser(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error) {
+// JOIN к events/outcomes/markets обогащает каждую ставку названием события,
+// командами, названием исхода и типом рынка (для отображения в истории вместо
+// «Событие #id»). Сортировка по давности (created_at DESC, id DESC) совпадает с
+// индексом idx_bets_user. Пустой status не добавляет фильтр по статусу.
+func (r *BetRepositoryImpl) ListByUser(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.BetWithDetails, error) {
 	q := QuerierFromCtx(ctx, r.pool)
 
 	if page < 1 {
 		page = 1
 	}
 
-	// Условия и аргументы собираем динамически: пустой status не добавляет WHERE
-	// (по аналогии с EventRepository.ListWithFilters).
-	conds := []string{"user_id = $1"}
+	// Условия и аргументы собираем динамически: пустой status не добавляет фильтр
+	// (по аналогии с EventRepository.ListWithFilters). Колонки квалифицированы
+	// префиксом b., т.к. в выборке участвуют несколько таблиц.
+	conds := []string{"b.user_id = $1"}
 	args := []any{userID}
 	if status != "" {
 		args = append(args, status)
-		conds = append(conds, fmt.Sprintf("status = $%d", len(args)))
+		conds = append(conds, fmt.Sprintf("b.status = $%d", len(args)))
 	}
 	args = append(args, DefaultPageSize)
 	limitPos := len(args)
 	args = append(args, (page-1)*DefaultPageSize)
 	offsetPos := len(args)
 
-	sql := fmt.Sprintf(`SELECT %s FROM bets WHERE %s
-		ORDER BY created_at DESC, id DESC
+	sql := fmt.Sprintf(`
+		SELECT b.id, b.user_id, b.outcome_id, b.event_id, b.stake, b.odds,
+		       b.potential_payout, b.status, b.settled_at, b.created_at,
+		       e.title, e.home, e.away, o.label, m.type
+		FROM bets b
+		JOIN events e   ON e.id = b.event_id
+		JOIN outcomes o ON o.id = b.outcome_id
+		JOIN markets m  ON m.id = o.market_id
+		WHERE %s
+		ORDER BY b.created_at DESC, b.id DESC
 		LIMIT $%d OFFSET $%d`,
-		betColumns, strings.Join(conds, " AND "), limitPos, offsetPos)
+		strings.Join(conds, " AND "), limitPos, offsetPos)
 
 	rows, err := q.Query(ctx, sql, args...)
 	if err != nil {
@@ -124,13 +137,17 @@ func (r *BetRepositoryImpl) ListByUser(ctx context.Context, userID int64, status
 	}
 	defer rows.Close()
 
-	var result []domain.Bet
+	var result []domain.BetWithDetails
 	for rows.Next() {
-		b, err := scanBet(rows)
-		if err != nil {
+		var bd domain.BetWithDetails
+		if err := rows.Scan(
+			&bd.ID, &bd.UserID, &bd.OutcomeID, &bd.EventID, &bd.Stake, &bd.Odds,
+			&bd.PotentialPayout, &bd.Status, &bd.SettledAt, &bd.CreatedAt,
+			&bd.EventTitle, &bd.EventHome, &bd.EventAway, &bd.OutcomeLabel, &bd.MarketType,
+		); err != nil {
 			return nil, fmt.Errorf("BetRepository.ListByUser scan: %w", mapErr(err))
 		}
-		result = append(result, b)
+		result = append(result, bd)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("BetRepository.ListByUser rows: %w", mapErr(err))

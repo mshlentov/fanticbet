@@ -169,10 +169,11 @@ func (s *BettingService) PlaceBet(ctx context.Context, userID, outcomeID, stake 
 	return result, nil
 }
 
-// ListBets возвращает страницу ставок пользователя (новые — первыми). status=""
-// означает «без фильтра»; page начинается с 1. Прокси к репозиторию, чтобы
-// хендлер не зависел от repository напрямую (слои handler → service → repository).
-func (s *BettingService) ListBets(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error) {
+// ListBets возвращает страницу ставок пользователя (новые — первыми), обогащённую
+// названиями события и исхода. status="" означает «без фильтра»; page начинается
+// с 1. Прокси к репозиторию, чтобы хендлер не зависел от repository напрямую
+// (слои handler → service → repository).
+func (s *BettingService) ListBets(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.BetWithDetails, error) {
 	bets, err := s.bets.ListByUser(ctx, userID, status, page)
 	if err != nil {
 		return nil, fmt.Errorf("BettingService.ListBets user_id=%d status=%s: %w", userID, status, err)

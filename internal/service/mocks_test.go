@@ -171,7 +171,7 @@ type settledCall struct {
 type fakeBetRepo struct {
 	createFn        func(ctx context.Context, b domain.Bet) (int64, error)
 	getByIDFn       func(ctx context.Context, id int64) (domain.Bet, error)
-	listByUserFn    func(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error)
+	listByUserFn    func(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.BetWithDetails, error)
 	listPendingFn   func(ctx context.Context, outcomeIDs []int64) ([]domain.Bet, error)
 	updateSettledFn func(ctx context.Context, id int64, status domain.BetStatus, settledAt time.Time) error
 	lastCreated     domain.Bet
@@ -185,7 +185,7 @@ func (m *fakeBetRepo) Create(ctx context.Context, b domain.Bet) (int64, error) {
 func (m *fakeBetRepo) GetByID(ctx context.Context, id int64) (domain.Bet, error) {
 	return m.getByIDFn(ctx, id)
 }
-func (m *fakeBetRepo) ListByUser(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.Bet, error) {
+func (m *fakeBetRepo) ListByUser(ctx context.Context, userID int64, status domain.BetStatus, page int) ([]domain.BetWithDetails, error) {
 	return m.listByUserFn(ctx, userID, status, page)
 }
 func (m *fakeBetRepo) ListPendingByOutcomes(ctx context.Context, outcomeIDs []int64) ([]domain.Bet, error) {

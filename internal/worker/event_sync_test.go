@@ -58,6 +58,7 @@ func (f *fakeEventRepo) ListForSettlement(context.Context) ([]domain.Event, erro
 func (f *fakeEventRepo) UpdateStatusAndScores(context.Context, int64, domain.EventStatus, []byte) error {
 	return nil
 }
+func (f *fakeEventRepo) SetFeatured(context.Context, int64, bool) error { return nil }
 
 // fakeEventsClient возвращает заранее заданные события по спорту.
 type fakeEventsClient struct {

@@ -62,6 +62,7 @@ type eventDTO struct {
 	Away       *string     `json:"away"`
 	StartsAt   time.Time   `json:"starts_at"`
 	Status     string      `json:"status"`
+	IsFeatured bool        `json:"is_featured"` // computed из featured_at != null (для бейджа/секции)
 	Markets    []marketDTO `json:"markets"`
 }
 
@@ -120,6 +121,7 @@ func (h *EventHandler) Sports(c *gin.Context) {
 // @Param        source     query     string  false  "Фильтр по источнику"  Enums(oddsapi, manual, custom)
 // @Param        status     query     string  false  "Фильтр по статусу"  Enums(upcoming, live, settled, cancelled)
 // @Param        league_id  query     int     false  "Фильтр по чемпионату (id)"
+// @Param        featured   query     bool    false  "Только популярные события (сортировка по дате добавления в популярное)"
 // @Param        q          query     string  false  "Поиск по названию события"
 // @Param        page       query     int     false  "Номер страницы (с 1)"  default(1)
 // @Success      200     {object}  eventsResponse
@@ -158,12 +160,13 @@ func (h *EventHandler) List(c *gin.Context) {
 	}
 
 	filter := repository.EventFilter{
-		Sport:    c.Query("sport"),
-		Source:   domain.EventSource(source),
-		Status:   domain.EventStatus(status),
-		LeagueID: leagueID,
-		Query:    c.Query("q"),
-		Page:     page,
+		Sport:        c.Query("sport"),
+		Source:       domain.EventSource(source),
+		Status:       domain.EventStatus(status),
+		LeagueID:     leagueID,
+		Query:        c.Query("q"),
+		FeaturedOnly: c.Query("featured") == "true",
+		Page:         page,
 	}
 
 	events, err := h.events.ListEvents(c.Request.Context(), filter)
@@ -243,6 +246,7 @@ func toEventDTO(e service.EventWithMarkets) eventDTO {
 		Away:       e.Event.Away,
 		StartsAt:   e.Event.StartsAt,
 		Status:     string(e.Event.Status),
+		IsFeatured: e.Event.FeaturedAt != nil,
 		Markets:    markets,
 	}
 }

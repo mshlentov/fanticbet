@@ -749,6 +749,20 @@ func (s *AdminService) SetMatchScores(ctx context.Context, eventID int64, input 
 	return nil
 }
 
+// SetFeatured помечает событие как «популярное» (featured=true) или снимает метку
+// (featured=false). Работает для любого источника события (manual/custom/oddsapi):
+// «популярное» — чисто витринная метка, не зависящая от статуса/типа. Проверяем
+// существование (404), затем делегируем в репозиторий (см. SetMatchStatus).
+func (s *AdminService) SetFeatured(ctx context.Context, eventID int64, featured bool) error {
+	if _, err := s.events.GetByID(ctx, eventID); err != nil {
+		return fmt.Errorf("AdminService.SetFeatured load event: %w", err)
+	}
+	if err := s.events.SetFeatured(ctx, eventID, featured); err != nil {
+		return fmt.Errorf("AdminService.SetFeatured event_id=%d: %w", eventID, err)
+	}
+	return nil
+}
+
 // loadLeagueForMatch грузит чемпионат по id и возвращает ErrNotFound (→ 404),
 // если его нет. Обёртка, чтобы Create/Edit матчей сообщали об ошибке единообразно.
 func (s *AdminService) loadLeagueForMatch(ctx context.Context, leagueID int64) (domain.League, error) {

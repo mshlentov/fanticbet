@@ -6,6 +6,7 @@ import {
   cancelMatch,
   createMatch,
   listAdminLeagues,
+  setEventFeatured,
   setMatchLive,
   setMatchScores,
 } from "../../api/admin";
@@ -14,6 +15,7 @@ import { listEvents } from "../../api/events";
 import type { Event, EventStatus } from "../../api/types";
 import { useToast } from "../../hooks/useToast";
 import { EmptyState, ErrorState, LoadingState } from "../states";
+import { FeaturedToggle } from "./FeaturedToggle";
 import { errMessage } from "../../lib/apiError";
 import { marketTitle, sportLabel } from "../../lib/labels";
 import { absTime, fmtOdds } from "../../lib/format";
@@ -392,7 +394,19 @@ function MatchAdminCard({
     onError: (err) => toast(errMessage(err, "Не удалось отменить матч"), "err"),
   });
 
-  const busy = scores.isPending || live.isPending || cancel.isPending;
+  // Управление популярностью: тоггл по текущему is_featured. Инвалидируем и админ-
+  // список (обновить кнопку), и публичную ленту (секция «Популярные»).
+  const featured = useMutation({
+    mutationFn: () => setEventFeatured(match.id, !match.is_featured),
+    onSuccess: () => {
+      toast(match.is_featured ? "Убрано из популярных" : "Добавлено в популярные", "ok");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (err) => toast(errMessage(err, "Не удалось изменить популярность"), "err"),
+  });
+
+  const busy = scores.isPending || live.isPending || cancel.isPending || featured.isPending;
   const canScore = match.status === "upcoming" || match.status === "live";
 
   const handleSettle = () => {
@@ -423,7 +437,10 @@ function MatchAdminCard({
             {match.league_name ? ` · ${match.league_name}` : ""}
           </div>
         </div>
-        <StatusBadge status={match.status} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <FeaturedToggle isFeatured={match.is_featured} disabled={busy} onToggle={() => featured.mutate()} />
+          <StatusBadge status={match.status} />
+        </div>
       </div>
 
       {/* Рынки с текущими коэффициентами (read-only) */}

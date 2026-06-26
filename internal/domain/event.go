@@ -21,6 +21,7 @@ type Event struct {
 	StartsAt   time.Time
 	Status     EventStatus
 	Scores     json.RawMessage // сырой scores: {"home":N,"away":N}; NULL, пока счёта нет
+	FeaturedAt *time.Time      // метка «популярное»: NULL = обычное, заполнено = популярное (M9)
 	CreatedBy  *int64          // админ-автор manual/custom события; NULL для oddsapi
 	CreatedAt  time.Time
 	UpdatedAt  time.Time

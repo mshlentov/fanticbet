@@ -15,7 +15,7 @@ import (
 // eventColumns — единый список колонок events в порядке сканирования scanEvent.
 // Держим в одном месте, чтобы SELECT-ы не разъезжались между методами.
 const eventColumns = `id, source, external_id, sport_slug, league_id, league_name,
-	title, home, away, starts_at, status, scores, created_by, created_at, updated_at`
+	title, home, away, starts_at, status, scores, featured_at, created_by, created_at, updated_at`
 
 // EventFilter — параметры выборки ленты событий (GET /events). Пустые строковые
 // поля и nil-указатели означают «без фильтра»; Page начинается с 1.
@@ -25,7 +25,11 @@ type EventFilter struct {
 	Status   domain.EventStatus // фильтр по статусу; "" — без фильтра
 	LeagueID *int64             // фильтр по чемпионату; nil — без фильтра
 	Query    string             // поиск по title (ILIKE); "" — без фильтра
-	Page     int                // страница, с 1
+	// FeaturedOnly — только «популярные» события (featured_at IS NOT NULL),
+	// отсортированные по дате добавления в популярное (свежие сверху). Для секции
+	// «Популярные события» на ленте (GET /events?featured=true).
+	FeaturedOnly bool
+	Page         int // страница, с 1
 }
 
 // EventRepository — интерфейс работы с таблицей events.
@@ -67,6 +71,10 @@ type EventRepository interface {
 	// UpdateStatusAndScores меняет статус события и сохраняет сырой scores.
 	// Возвращает domain.ErrNotFound, если события с таким id нет.
 	UpdateStatusAndScores(ctx context.Context, id int64, status domain.EventStatus, scores []byte) error
+	// SetFeatured помечает событие как «популярное» (featured=true → featured_at =
+	// now()) или снимает метку (featured=false → NULL). Возвращает
+	// domain.ErrNotFound, если события с таким id нет.
+	SetFeatured(ctx context.Context, id int64, featured bool) error
 }
 
 type EventRepositoryImpl struct {
@@ -83,7 +91,7 @@ func scanEvent(row pgx.Row) (domain.Event, error) {
 	err := row.Scan(
 		&e.ID, &e.Source, &e.ExternalID, &e.SportSlug, &e.LeagueID, &e.LeagueName,
 		&e.Title, &e.Home, &e.Away, &e.StartsAt, &e.Status, &e.Scores,
-		&e.CreatedBy, &e.CreatedAt, &e.UpdatedAt,
+		&e.FeaturedAt, &e.CreatedBy, &e.CreatedAt, &e.UpdatedAt,
 	)
 	return e, err
 }
@@ -283,6 +291,11 @@ func (r *EventRepositoryImpl) ListWithFilters(ctx context.Context, f EventFilter
 	if f.Status != "" {
 		args = append(args, f.Status)
 		conds = append(conds, fmt.Sprintf("status = $%d", len(args)))
+	} else {
+		// Без явного фильтра лента не показывает завершённые/отменённые события —
+		// они только засоряют выдачу. Явный ?status=settled по-прежнему работает.
+		args = append(args, domain.EventSettled, domain.EventCancelled)
+		conds = append(conds, fmt.Sprintf("status NOT IN ($%d, $%d)", len(args)-1, len(args)))
 	}
 	if f.LeagueID != nil {
 		args = append(args, *f.LeagueID)
@@ -291,6 +304,17 @@ func (r *EventRepositoryImpl) ListWithFilters(ctx context.Context, f EventFilter
 	if f.Query != "" {
 		args = append(args, "%"+f.Query+"%")
 		conds = append(conds, fmt.Sprintf("title ILIKE $%d", len(args)))
+	}
+	if f.FeaturedOnly {
+		conds = append(conds, "featured_at IS NOT NULL")
+	}
+
+	// Популярные сортируем по дате добавления в популярное (свежие сверху), обычную
+	// ленту — по времени старта. featured_at без условия попадает в общий ORDER BY,
+	// поэтому держим его только для секции «Популярные».
+	orderBy := "starts_at ASC, id ASC"
+	if f.FeaturedOnly {
+		orderBy = "featured_at DESC, id ASC"
 	}
 
 	page := f.Page
@@ -303,9 +327,9 @@ func (r *EventRepositoryImpl) ListWithFilters(ctx context.Context, f EventFilter
 	offsetPos := len(args)
 
 	sql := fmt.Sprintf(`SELECT %s FROM events WHERE %s
-		ORDER BY starts_at ASC, id ASC
+		ORDER BY %s
 		LIMIT $%d OFFSET $%d`,
-		eventColumns, strings.Join(conds, " AND "), limitPos, offsetPos)
+		eventColumns, strings.Join(conds, " AND "), orderBy, limitPos, offsetPos)
 
 	rows, err := q.Query(ctx, sql, args...)
 	if err != nil {
@@ -392,6 +416,28 @@ func (r *EventRepositoryImpl) UpdateStatusAndScores(ctx context.Context, id int6
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("EventRepository.UpdateStatusAndScores id=%d: %w", id, domain.ErrNotFound)
+	}
+	return nil
+}
+
+// SetFeatured помечает событие популярным (featured_at = now()) или снимает метку
+// (featured_at = NULL). Одно поле кодирует и флаг, и порядок (см. миграцию 000013).
+func (r *EventRepositoryImpl) SetFeatured(ctx context.Context, id int64, featured bool) error {
+	q := QuerierFromCtx(ctx, r.pool)
+
+	// featured=true → now(); false → NULL. CASE по булеву аргументу, чтобы не
+	// плодить два почти одинаковых запроса.
+	const sql = `
+		UPDATE events
+		SET featured_at = CASE WHEN $2 THEN now() ELSE NULL END
+		WHERE id = $1`
+
+	tag, err := q.Exec(ctx, sql, id, featured)
+	if err != nil {
+		return fmt.Errorf("EventRepository.SetFeatured id=%d: %w", id, mapErr(err))
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("EventRepository.SetFeatured id=%d: %w", id, domain.ErrNotFound)
 	}
 	return nil
 }

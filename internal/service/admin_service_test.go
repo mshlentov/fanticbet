@@ -805,6 +805,54 @@ func TestAdminService_SetMatchStatus_NotUpcoming(t *testing.T) {
 	}
 }
 
+// --- SetFeatured (M9) ---
+
+func TestAdminService_SetFeatured_On(t *testing.T) {
+	svc, _, events, _, _, _, _, _ := newTestAdmin(t)
+	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
+		return domain.Event{ID: id, Source: domain.SourceManual, Status: domain.EventUpcoming}, nil
+	}
+
+	if err := svc.SetFeatured(context.Background(), 5, true); err != nil {
+		t.Fatalf("SetFeatured: %v", err)
+	}
+	if len(events.featuredCalls) != 1 {
+		t.Fatalf("featuredCalls = %d, want 1", len(events.featuredCalls))
+	}
+	if events.featuredCalls[0].ID != 5 || !events.featuredCalls[0].Featured {
+		t.Errorf("featuredCalls[0] = %+v, want {ID:5 Featured:true}", events.featuredCalls[0])
+	}
+}
+
+func TestAdminService_SetFeatured_Off(t *testing.T) {
+	svc, _, events, _, _, _, _, _ := newTestAdmin(t)
+	events.getFn = func(_ context.Context, id int64) (domain.Event, error) {
+		return domain.Event{ID: id, Source: domain.SourceCustom, Status: domain.EventUpcoming}, nil
+	}
+
+	if err := svc.SetFeatured(context.Background(), 7, false); err != nil {
+		t.Fatalf("SetFeatured: %v", err)
+	}
+	if len(events.featuredCalls) != 1 || events.featuredCalls[0].Featured {
+		t.Errorf("featuredCalls = %+v, want one call with Featured=false", events.featuredCalls)
+	}
+}
+
+func TestAdminService_SetFeatured_NotFound(t *testing.T) {
+	svc, _, events, _, _, _, _, _ := newTestAdmin(t)
+	events.getFn = func(_ context.Context, _ int64) (domain.Event, error) {
+		return domain.Event{}, domain.ErrNotFound
+	}
+
+	err := svc.SetFeatured(context.Background(), 999, true)
+	if !errors.Is(err, domain.ErrNotFound) {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+	if len(events.featuredCalls) != 0 {
+		t.Errorf("featuredCalls = %d, want 0 (no SetFeatured after 404)", len(events.featuredCalls))
+	}
+}
+
 // fakeBetRepoWithPending возвращает фейк BetRepository, отдающий заданные
 // pending-ставки — нужен тестам SetMatchScores/CancelMatch, где settlement
 // считает выплаты. В newTestAdmin уже стоит пустой fakeBetRepo без listPendingFn.

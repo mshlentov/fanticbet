@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getPublicProfile, listUserBets } from "../api/stats";
 import type { Bet, PublicProfile } from "../api/types";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
-import { BET_STATUS_META, betResultLine } from "../lib/bet";
+import { BET_STATUS_META, betEventTitle, betOutcomeLabel, betResultLine } from "../lib/bet";
 import { absTime, avatarBg, fmtCoins, fmtOdds, initials } from "../lib/format";
 
 // UserProfilePage — публичный профиль: карточка со статистикой (ставок,
@@ -168,10 +168,10 @@ function BetRow({ bet }: { bet: Bet }) {
       </span>
       <div style={{ flex: 1, minWidth: 170 }}>
         <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em" }}>
-          Событие #{bet.event_id}
+          {betEventTitle(bet)}
         </div>
         <div style={{ fontSize: 12.5, color: "var(--text2)", marginTop: 2 }}>
-          Исход #{bet.outcome_id} <span style={{ color: "var(--text3)" }}>· кф {fmtOdds(bet.odds)}</span>
+          {betOutcomeLabel(bet)} <span style={{ color: "var(--text3)" }}>· кф {fmtOdds(bet.odds)}</span>
         </div>
       </div>
       <div style={{ textAlign: "right" }}>

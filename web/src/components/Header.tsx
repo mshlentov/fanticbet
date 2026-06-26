@@ -4,7 +4,8 @@ import { useAuth } from "../hooks/useAuth";
 import { useTheme } from "../hooks/useTheme";
 import { CoinIcon, MoonIcon, SunIcon } from "./icons";
 import { NAV_ITEMS, isNavActive } from "./nav";
-import { fmtCoins, initials } from "../lib/format";
+import { UserMenu } from "./UserMenu";
+import { fmtCoins } from "../lib/format";
 
 // Header — фирменная шапка: логотип, навигация, баланс, переключатель темы,
 // вход / аватар. Баланс и аватар видны только авторизованному.
@@ -60,14 +61,7 @@ export function Header() {
         </button>
 
         {status === "authenticated" && user ? (
-          <button
-            type="button"
-            className="fb-avatar"
-            title={user.display_name}
-            onClick={() => navigate("/me/bets")}
-          >
-            {initials(user.display_name)}
-          </button>
+          <UserMenu displayName={user.display_name} placement="down" />
         ) : (
           <Link to="/login" className="fb-btn-outline">
             Войти

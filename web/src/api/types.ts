@@ -58,6 +58,7 @@ export type Event = {
   away: string | null;
   starts_at: string;
   status: EventStatus;
+  is_featured: boolean; // computed из featured_at != null (бейдж/секция «Популярные»)
   markets: Market[];
 };
 
@@ -97,6 +98,13 @@ export type Bet = {
   status: BetStatus;
   settled_at: string | null;
   created_at: string;
+  // Обогащение для истории ставок (/me/bets, /users/:id/bets): названия события
+  // и исхода. В ответе POST /bets пусты — там клиент и так знает, на что ставил.
+  event_title: string;
+  event_home: string | null;
+  event_away: string | null;
+  outcome_label: string;
+  market_type: MarketType | "";
 };
 
 export type PlaceBetResponse = {

@@ -30,6 +30,14 @@ type fakeEventRepo struct {
 	// M8: вызовы UpdateMatch и UpdateStatus (сценарии матчей).
 	updateMatchCalls []eventMatchUpdateCall
 	updateStatusCalls []eventStatusCall
+	// M9: вызовы SetFeatured (сценарии управления популярностью).
+	featuredCalls []eventFeaturedCall
+}
+
+// eventFeaturedCall — запись одного вызова SetFeatured (M9).
+type eventFeaturedCall struct {
+	ID       int64
+	Featured bool
 }
 
 // eventStatusScoreCall — запись одного вызова UpdateStatusAndScores.
@@ -99,6 +107,10 @@ func (m *fakeEventRepo) ListForSettlement(ctx context.Context) ([]domain.Event, 
 }
 func (m *fakeEventRepo) UpdateStatusAndScores(_ context.Context, id int64, status domain.EventStatus, scores []byte) error {
 	m.statusScoresCalls = append(m.statusScoresCalls, eventStatusScoreCall{ID: id, Status: status, Scores: scores})
+	return nil
+}
+func (m *fakeEventRepo) SetFeatured(_ context.Context, id int64, featured bool) error {
+	m.featuredCalls = append(m.featuredCalls, eventFeaturedCall{ID: id, Featured: featured})
 	return nil
 }
 

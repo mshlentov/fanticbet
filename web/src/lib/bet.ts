@@ -12,6 +12,22 @@ export const BET_STATUS_META: Record<
   void: { label: "Возврат", bg: "var(--surface2)", color: "var(--text2)" },
 };
 
+// betEventTitle — заголовок события в строке истории ставок. Для матчей с
+// командами — «Команда A — Команда B», иначе название события. Если обогащение
+// не пришло (старые данные / ответ POST /bets) — откатываемся на «Событие #id».
+export function betEventTitle(bet: Bet): string {
+  if (bet.event_home && bet.event_away) {
+    return `${bet.event_home} — ${bet.event_away}`;
+  }
+  return bet.event_title || `Событие #${bet.event_id}`;
+}
+
+// betOutcomeLabel — название исхода в строке истории ставок, с откатом на
+// «Исход #id», если label не пришёл.
+export function betOutcomeLabel(bet: Bet): string {
+  return bet.outcome_label || `Исход #${bet.outcome_id}`;
+}
+
 // betResultLine — итоговая строка ставки (потенциал / выигрыш / проигрыш / возврат).
 export function betResultLine(bet: Bet): { text: string; color: string } {
   switch (bet.status) {
